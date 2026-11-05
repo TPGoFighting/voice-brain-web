@@ -42,6 +42,20 @@ function sanitizeFilename(name) {
     .slice(0, 50);
 }
 
+// 严格校验目标路径必须位于 Vault 内部（防同级目录前缀绕过，如 ../vault-evil/）
+function isSafeVaultPath(absolutePath) {
+  const relative = path.relative(path.resolve(VAULT_PATH), path.resolve(absolutePath));
+  return relative !== '' && !relative.startsWith('..') && !path.isAbsolute(relative);
+}
+
+// YAML 双引号标量转义：防止标题中的引号或换行破坏 Frontmatter 结构
+function yamlEscape(value) {
+  return String(value || '')
+    .replace(/\\/g, '\\\\')
+    .replace(/"/g, '\\"')
+    .replace(/\r?\n/g, ' ');
+}
+
 // 将录音会话转写为标准的 Obsidian LMMWiki 笔记
 function formatSessionMarkdown(session, persona = {}) {
   const title = session.title || session.topic || '未命名讨论';
@@ -62,7 +76,7 @@ function formatSessionMarkdown(session, persona = {}) {
 
   // 构建 Frontmatter
   let md = `---
-title: "${title}"
+title: "${yamlEscape(title)}"
 created: ${createdDate}
 updated: ${formatDate(new Date())}
 date_time: "${createdDateTime}"
@@ -206,7 +220,14 @@ async function syncSessionToVault(session, persona = {}) {
   const targetDir = path.join(VAULT_PATH, '01-Raw', '录音材料', monthDir);
   ensureDir(targetDir);
 
-  const filename = `${createdDate}-${sanitizeFilename(title)}.md`;
+  let filename = `${createdDate}-${sanitizeFilename(title)}.md`;
+  // 同一天同标题的重复归档不覆盖旧笔记，追加序号生成唯一文件名
+  if (fs.existsSync(path.join(targetDir, filename))) {
+    const baseName = filename.slice(0, -3);
+    let counter = 2;
+    while (fs.existsSync(path.join(targetDir, `${baseName}-${counter}.md`))) counter++;
+    filename = `${baseName}-${counter}.md`;
+  }
   const filePath = path.join(targetDir, filename);
   const relativePath = path.join('01-Raw', '录音材料', monthDir, filename).replace(/\\/g, '/');
 
@@ -240,7 +261,7 @@ async function syncSessionToVault(session, persona = {}) {
       const entDesc = typeof ent === 'object' && ent.description ? ent.description : '由 TP Voice Brain 录音会话自动沉淀的核心概念节点。';
       const entCategory = typeof ent === 'object' && ent.category ? ent.category : '概念';
       const entContent = `---
-title: "${entName}"
+title: "${yamlEscape(entName)}"
 created: ${createdDate}
 updated: ${formatDate(new Date())}
 layer: wiki
@@ -459,7 +480,7 @@ function readVaultNote(noteRelativePath) {
   }
   const cleanPath = (noteRelativePath || '00-入口/LMMWiki-Index.md').replace(/^\/+/, '');
   const targetPath = path.resolve(VAULT_PATH, cleanPath);
-  if (!targetPath.startsWith(path.resolve(VAULT_PATH))) {
+  if (!isSafeVaultPath(targetPath)) {
     return { ok: false, error: 'Access denied: path traversal not allowed' };
   }
 
@@ -603,7 +624,7 @@ async function getObsidianStatus() {
 
   let agentStatus = null;
   try {
-    const healthRes = await fetch(`${OBSIDIAN_AGENT_URL}/api/health`, { timeout: 3000 });
+    const healthRes = await fetch(`${OBSIDIAN_AGENT_URL}/api/health`, { signal: AbortSignal.timeout(3000) });
     if (healthRes.ok) {
       agentStatus = await healthRes.json();
     }
@@ -636,7 +657,7 @@ async function appendThinkingToNote({
   let cleanRelPath = (notePath || '00-入口/LMMWiki-Index.md').replace(/^\/+/, '');
   let actualPath = path.resolve(VAULT_PATH, cleanRelPath);
 
-  if (!actualPath.startsWith(path.resolve(VAULT_PATH))) {
+  if (!isSafeVaultPath(actualPath)) {
     throw new Error('Access denied: path traversal not allowed');
   }
 

@@ -46,7 +46,7 @@
 | LLM | `GET /api/llm/personas`、`POST /api/llm/generate-minutes|evolve|fast-insight|polish`、`POST /api/asr/cleanse` |
 | 知识库 | `GET /api/obsidian/status|search|note|list`、`POST /api/obsidian/sync|ask|append` |
 | 实时流 | `WS /ws/asr` |
-| 客户端凭据 | `ALL /auth/token`、`/token` ⚠️ 见下方安全须知 |
+| 鉴权 | 设置 `API_AUTH_TOKEN` 后所有 `/api/*` 需携带 `Authorization: Bearer <token>`，见下方安全须知 |
 
 ---
 
@@ -112,7 +112,8 @@ npm start                 # Linux 默认 8120，其他平台默认 3000
 
 ## ⚠️ 安全须知
 
-- **`/auth/token` 与 `/token` 目前无鉴权，会直接把 `DASHSCOPE_API_KEY` / `DEEPSEEK_API_KEY` 返回给调用方**（客户端直连 ASR 所需）。公网部署时务必在网关层加访问控制、IP 白名单或改造为服务端代理，避免密钥被任意取用。此项为本仓库既有的架构风险，**待修复**。
+- API 密钥仅存在于服务端环境变量，不再通过任何 HTTP 端点下发；ASR 转写经由服务端 WebSocket 中继完成。
+- 所有 `/api/*` 端点支持可选鉴权：设置 `API_AUTH_TOKEN` 环境变量后，请求必须携带 `Authorization: Bearer <API_AUTH_TOKEN>`；未设置时保持本地开放访问。公网部署时建议务必设置该令牌。
 - 本仓库 **不含** 任何真实密钥、录音会话数据、记忆数据或 Android APK：`.env`、`data/*.json`、`*.apk`、`node_modules` 均已由 `.gitignore` 排除。
 - 源码内不内置任何默认口令，`ADMIN_API_KEY` 只从环境变量读取。
 

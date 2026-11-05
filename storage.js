@@ -10,7 +10,7 @@ if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
 }
 if (!fs.existsSync(SESSIONS_FILE)) {
-  fs.writeFileSync(SESSIONS_FILE, JSON.stringify([], null, 2), 'utf-8');
+  writeJsonAtomic(SESSIONS_FILE, []);
 }
 if (!fs.existsSync(MEMORIES_FILE)) {
   // 预置几条初始用户画像与项目事实记忆
@@ -34,7 +34,14 @@ if (!fs.existsSync(MEMORIES_FILE)) {
       sourceSessionId: "system"
     }
   ];
-  fs.writeFileSync(MEMORIES_FILE, JSON.stringify(initialMemories, null, 2), 'utf-8');
+  writeJsonAtomic(MEMORIES_FILE, initialMemories);
+}
+
+// 原子写盘：先写临时文件再 rename，避免进程崩溃导致 JSON 半截损坏
+function writeJsonAtomic(file, data) {
+  const tmpFile = `${file}.tmp`;
+  fs.writeFileSync(tmpFile, JSON.stringify(data, null, 2), 'utf-8');
+  fs.renameSync(tmpFile, file);
 }
 
 function readJsonSafe(file) {
@@ -43,6 +50,10 @@ function readJsonSafe(file) {
     return JSON.parse(raw);
   } catch (err) {
     console.error(`Read error on ${file}:`, err);
+    // 损坏文件立即改名保留现场，避免空缓存随下次刷盘把原始数据覆盖清空
+    try {
+      fs.renameSync(file, `${file}.corrupt-${Date.now()}`);
+    } catch (renameErr) {}
     return [];
   }
 }
@@ -60,7 +71,9 @@ function scheduleSessionsFlush() {
   if (sessionsFlushTimer) return;
   sessionsFlushTimer = setTimeout(() => {
     sessionsFlushTimer = null;
-    fs.promises.writeFile(SESSIONS_FILE, JSON.stringify(sessionsCache, null, 2), 'utf-8')
+    const tmpFile = `${SESSIONS_FILE}.tmp`;
+    fs.promises.writeFile(tmpFile, JSON.stringify(sessionsCache, null, 2), 'utf-8')
+      .then(() => fs.promises.rename(tmpFile, SESSIONS_FILE))
       .catch(err => console.error('[Storage Async Flush] Sessions error:', err));
   }, 200);
 }
@@ -69,7 +82,9 @@ function scheduleMemoriesFlush() {
   if (memoriesFlushTimer) return;
   memoriesFlushTimer = setTimeout(() => {
     memoriesFlushTimer = null;
-    fs.promises.writeFile(MEMORIES_FILE, JSON.stringify(memoriesCache, null, 2), 'utf-8')
+    const tmpFile = `${MEMORIES_FILE}.tmp`;
+    fs.promises.writeFile(tmpFile, JSON.stringify(memoriesCache, null, 2), 'utf-8')
+      .then(() => fs.promises.rename(tmpFile, MEMORIES_FILE))
       .catch(err => console.error('[Storage Async Flush] Memories error:', err));
   }, 200);
 }
@@ -86,9 +101,11 @@ module.exports = {
   saveSession(sessionData) {
     const existingIndex = sessionsCache.findIndex(s => s.id === sessionData.id);
     if (existingIndex >= 0) {
+      // 更新时保留原 createdAt，防止客户端伪造时间覆盖归档时间线
       sessionsCache[existingIndex] = {
         ...sessionsCache[existingIndex],
         ...sessionData,
+        createdAt: sessionsCache[existingIndex].createdAt,
         updatedAt: new Date().toISOString()
       };
     } else {
@@ -114,7 +131,12 @@ module.exports = {
 
   addMemories(newMemories) {
     const added = [];
+    const existingContents = new Set(memoriesCache.map(m => m.content));
     for (const item of newMemories) {
+      if (typeof item.content !== 'string' || !item.content.trim()) continue;
+      // 按 content 去重：重复生成纪要不会向记忆库重复沉淀同一条记忆
+      if (existingContents.has(item.content)) continue;
+      existingContents.add(item.content);
       const memoryEntry = {
         id: item.id || `mem-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
         category: item.category || 'fact', // preference | project | decision | fact | person
@@ -140,8 +162,8 @@ module.exports = {
     if (sessionsFlushTimer) clearTimeout(sessionsFlushTimer);
     if (memoriesFlushTimer) clearTimeout(memoriesFlushTimer);
     try {
-      fs.writeFileSync(SESSIONS_FILE, JSON.stringify(sessionsCache, null, 2), 'utf-8');
-      fs.writeFileSync(MEMORIES_FILE, JSON.stringify(memoriesCache, null, 2), 'utf-8');
+      writeJsonAtomic(SESSIONS_FILE, sessionsCache);
+      writeJsonAtomic(MEMORIES_FILE, memoriesCache);
     } catch (e) {}
   }
 };

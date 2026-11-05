@@ -15,23 +15,25 @@ const PORT = process.env.PORT || (process.platform === 'linux' ? 8120 : 3000);
 const DASHSCOPE_API_KEY = process.env.DASHSCOPE_API_KEY;
 const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 const DEEPSEEK_MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-flash';
+const API_AUTH_TOKEN = process.env.API_AUTH_TOKEN || '';
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
+
+// 可选 API 鉴权：设置 API_AUTH_TOKEN 后，所有 /api/* 请求必须携带
+// `Authorization: Bearer <API_AUTH_TOKEN>`；未设置时保持本地开放访问。
+function requireApiAuth(req, res, next) {
+  if (!API_AUTH_TOKEN) return next();
+  if (req.headers['authorization'] === `Bearer ${API_AUTH_TOKEN}`) return next();
+  return res.status(401).json({ error: 'Unauthorized' });
+}
+app.use('/api', requireApiAuth);
 
 // -------------------------------------------------------------
 // 1. 服务状态与配置
 // -------------------------------------------------------------
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', server: 'voice-bean', time: new Date().toISOString() });
-});
-
-app.all(['/auth/token', '/token'], (req, res) => {
-  res.json({
-    asr_token: DASHSCOPE_API_KEY,
-    llm_key: DEEPSEEK_API_KEY,
-    expires_at: Date.now() + 3600 * 1000
-  });
 });
 
 app.get('/api/status', (req, res) => {
@@ -63,6 +65,9 @@ app.post('/api/sessions', (req, res) => {
   const sessionData = req.body;
   if (!sessionData.id) {
     sessionData.id = 'sess-' + Date.now();
+  }
+  if (typeof sessionData.id !== 'string' || !/^[\w-]{1,64}$/.test(sessionData.id)) {
+    return res.status(400).json({ error: 'Invalid session id' });
   }
   const saved = storage.saveSession(sessionData);
   res.json({ success: true, session: saved });
@@ -556,7 +561,7 @@ JSON Schema 规范示例：
           id: syncedSessionId,
           title: result.title || req.body.customTitle || '语音纪要',
           createdAt: new Date().toISOString(),
-          duration: req.body.duration || (req.body.utterances ? Math.max(0, ...req.body.utterances.map(u => (u.end || 0) / 1000)) : 0),
+          duration: req.body.duration || (req.body.utterances ? Math.max(0, ...req.body.utterances.map(u => (u.end_time || u.end || 0) / 1000)) : 0),
           utterances: utterances,
           minutes: result,
           topic: result.title || '语音纪要',
@@ -996,15 +1001,16 @@ app.post('/api/asr/cleanse', async (req, res) => {
   try {
     const { text, sentenceId, context } = req.body;
     const t0 = Date.now();
-    const cleansed = await cleanseSentenceWithQwenFlash(text, context || '');
     const cacheKey = context ? `${(context || '').slice(-30)}:::${(text || '').trim()}` : (text || '').trim();
+    const wasCached = sentenceCache.has(cacheKey);
+    const cleansed = await cleanseSentenceWithQwenFlash(text, context || '');
     res.json({
       ok: true,
       sentenceId,
       original: text,
       cleansed,
       latencyMs: Date.now() - t0,
-      cached: sentenceCache.has(cacheKey)
+      cached: wasCached
     });
   } catch (err) {
     res.json({ ok: false, original: req.body.text, cleansed: req.body.text, error: err.message });
@@ -1434,17 +1440,26 @@ wss.on('connection', (clientWs, req) => {
           persistSessionIncremental();
           isClientRecording = false;
           isReconnecting = false;
-          if (dashscopeWs && dashscopeWs.readyState === WebSocket.OPEN && currentTaskId) {
-            dashscopeWs.send(JSON.stringify({
+          // 捕获旧连接后只关闭它本身，不重置全局状态与队列，
+          // 避免用户在 800ms 内重新开始录音时新任务被旧定时器清空。
+          const staleDashscopeWs = dashscopeWs;
+          const staleTaskId = currentTaskId;
+          dashscopeWs = null;
+          currentTaskId = null;
+          isTaskStarted = false;
+          if (staleDashscopeWs && staleDashscopeWs.readyState === WebSocket.OPEN && staleTaskId) {
+            staleDashscopeWs.send(JSON.stringify({
               header: {
                 action: 'finish-task',
-                task_id: currentTaskId,
+                task_id: staleTaskId,
                 streaming: 'duplex'
               },
               payload: { input: {} }
             }));
             setTimeout(() => {
-              cleanupDashScope(true);
+              try {
+                if (staleDashscopeWs.readyState !== WebSocket.CLOSED) staleDashscopeWs.close();
+              } catch (e) {}
             }, 800);
           } else {
             cleanupDashScope(true);

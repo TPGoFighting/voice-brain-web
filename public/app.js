@@ -564,70 +564,101 @@ document.addEventListener('DOMContentLoaded', async () => {
       updateRecordingUI('connecting');
 
       state.sessionId = 'sess-' + Date.now();
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = `${protocol}//${window.location.host}/ws/asr`;
-      state.ws = new WebSocket(wsUrl);
+      state.wsRetryCount = 0;
+      state.ws = connectAsrSocket(state.sessionId);
+    } catch (err) {
+      alert('启动麦克风录音异常: ' + (err.message || err.name || '请检查麦克风权限'));
+      updateRecordingUI('error');
+    }
+  }
 
-      state.ws.onopen = async () => {
+  function connectAsrSocket(sessionId, { resumeRecording = false } = {}) {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.host}/ws/asr`;
+    const ws = new WebSocket(wsUrl);
+
+    ws.onopen = async () => {
+      state.wsRetryCount = 0;
         const silenceThreshold = parseInt(localStorage.getItem('voice_sentence_silence') || '800', 10);
-        state.ws.send(JSON.stringify({
+      ws.send(JSON.stringify({
           type: 'start',
-          sessionId: state.sessionId,
+        sessionId,
           maxSentenceSilence: silenceThreshold
         }));
 
+      // 断线重连时复用正在运行的录音器，仅重建 ASR 通道，计时器保持不变
+      if (resumeRecording && state.recorder) {
+        updateRecordingUI('recording');
+        return;
+      }
+
         state.recorder = new AudioStreamRecorder({
           onChunk: (chunk) => {
-            if (state.ws && state.ws.readyState === WebSocket.OPEN) {
-              state.ws.send(chunk);
-              updatePcmStats();
-            }
+          if (state.ws && state.ws.readyState === WebSocket.OPEN) {
+            state.ws.send(chunk);
+            updatePcmStats();
+          }
           },
           onVolume: (vol) => {
             state.currentVolume = vol;
           }
         });
 
-        await state.recorder.start(dom.micSelect.value || null);
-        loadAudioDevices();
+      await state.recorder.start(dom.micSelect.value || null);
+      loadAudioDevices();
 
-        state.isRecording = true;
-        updateRecordingUI('recording');
+      state.isRecording = true;
+      updateRecordingUI('recording');
 
-        state.recordSeconds = 0;
-        if (state.recordTimer) clearInterval(state.recordTimer);
-        state.recordTimer = setInterval(() => {
-          state.recordSeconds++;
-          const m = String(Math.floor(state.recordSeconds / 60)).padStart(2, '0');
-          const s = String(state.recordSeconds % 60).padStart(2, '0');
-          dom.timerBadge.textContent = `${m}:${s}`;
-          if (dom.mobileTimerBadge) dom.mobileTimerBadge.textContent = `${m}:${s}`;
-        }, 1000);
+      state.recordSeconds = 0;
+      if (state.recordTimer) clearInterval(state.recordTimer);
+      state.recordTimer = setInterval(() => {
+        state.recordSeconds++;
+        const m = String(Math.floor(state.recordSeconds / 60)).padStart(2, '0');
+        const s = String(state.recordSeconds % 60).padStart(2, '0');
+        dom.timerBadge.textContent = `${m}:${s}`;
+        if (dom.mobileTimerBadge) dom.mobileTimerBadge.textContent = `${m}:${s}`;
+      }, 1000);
       };
 
-      state.ws.onmessage = (event) => {
+    ws.onmessage = (event) => {
         try {
           const msg = JSON.parse(event.data);
           handleAsrMessage(msg);
         } catch (e) {
           console.error('WS parse error:', e);
         }
-      };
+    };
 
-      state.ws.onerror = (err) => {
+    ws.onerror = (err) => {
         console.warn('WebSocket error:', err);
-        updateRecordingUI('error');
-      };
+    };
 
-      state.ws.onclose = () => {
-        if (!state.isRecording) {
-          updateRecordingUI('idle');
+    ws.onclose = () => {
+      if (!state.isRecording) {
+        updateRecordingUI('idle');
+        return;
+      }
+      state.wsRetryCount = (state.wsRetryCount || 0) + 1;
+      if (state.wsRetryCount > 5) {
+        state.isRecording = false;
+        if (state.recordTimer) clearInterval(state.recordTimer);
+        if (state.recorder) {
+          try { state.recorder.stop(); } catch (e) {}
         }
-      };
-    } catch (err) {
-      alert('启动麦克风录音异常: ' + (err.message || err.name || '请检查麦克风权限'));
-      updateRecordingUI('error');
-    }
+        console.warn('[ASR] WebSocket 连续重连失败，已自动停止录音');
+        updateRecordingUI('error');
+        return;
+      }
+      updateRecordingUI('connecting');
+      setTimeout(() => {
+        if (state.isRecording) {
+          state.ws = connectAsrSocket(state.sessionId, { resumeRecording: true });
+        }
+      }, 1000);
+    };
+
+    return ws;
   }
 
   async function stopRecordingSession() {
