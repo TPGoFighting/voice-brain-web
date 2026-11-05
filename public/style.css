@@ -1,0 +1,861 @@
+/* ==========================================================================
+   TPGoFighting · Voice Brain Design System (TP UI v2.4.0 Engine Integration)
+   Aligned with 《TP 品牌 VI 手册 v2.4》 & 《03-组件库TP-UI》
+   Strict One-Page App-Shell (100dvh Zero Page Scroll)
+   ========================================================================== */
+
+:root {
+  /* 桥接 TP UI v2.4.0 Semantic 令牌层 */
+  --bg-canvas: var(--tp-bg-canvas, #fbfaf6);
+  --bg-card: var(--tp-bg-surface, #ffffff);
+  --bg-card-hover: var(--tp-bg-surface, #ffffff);
+  --bg-subtle: var(--tp-bg-subtle, #f3efe6);
+  --bg-tag: var(--tp-bg-subtle, #f0ece1);
+  
+  --grid-line: rgba(20, 24, 33, 0.05);
+  --border-main: var(--tp-border-hard, #181b22);
+  --border-subtle: var(--tp-border-soft, rgba(24, 27, 34, 0.14));
+  --border-hover: var(--tp-border-hard, #181b22);
+  
+  --text-title: var(--tp-text-main, #181b22);
+  --text-body: var(--tp-text-sub, #374151);
+  --text-muted: var(--tp-text-mute, #6b7280);
+  --text-faint: var(--tp-text-faint, #9ca3af);
+  
+  --accent-yellow: var(--tp-accent, #f59e0b);
+  --accent-yellow-light: var(--tp-accent-soft, #fef3e2);
+  --accent-blue: var(--tp-color-blue-500, #0d72fe);
+  --accent-blue-light: #eff6ff;
+  --accent-green: #10b981;
+  --accent-green-light: #ecfdf5;
+  --accent-rose: var(--tp-color-red-600, #b41229);
+  --accent-indigo: #6366f1;
+
+  /* 统一 Agent 规范强调色与 Obsidian 紫调令牌 */
+  --accent-purple: #7c4dff;
+  --accent-purple-hover: #6d3bf5;
+  --accent-purple-soft: #f3f1ff;
+  --accent-purple-border: #9b76ff;
+  --accent-purple-ring: rgba(124, 77, 255, 0.35);
+  --accent-purple-dark: #5b28d9;
+  
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.04);
+  --shadow-card: 0 4px 12px rgba(24, 27, 34, 0.05);
+  --shadow-pop: 3px 3px 0px var(--tp-shadow-color, #181b22);
+  --shadow-pop-lg: 5px 5px 0px var(--tp-shadow-color, #181b22);
+  --shadow-pop-sm: 2px 2px 0px var(--tp-shadow-color, #181b22);
+  
+  --radius-sm: var(--tp-radius-8, 8px);
+  --radius-md: var(--tp-radius-14, 14px);
+  --radius-lg: var(--tp-radius-20, 20px);
+  --radius-pill: var(--tp-radius-pill, 999px);
+}
+
+[data-palette="portal"][data-theme="dark"],
+[data-theme="dark"] {
+  /* 赛博深色模式：覆盖 data-palette 后置权值 */
+  --tp-bg-canvas: #090d16;
+  --tp-bg-surface: #111726;
+  --tp-bg-subtle: #172033;
+  --tp-text-main: #f8fafc;
+  --tp-text-sub: #cbd5e1;
+  --tp-text-mute: #94a3b8;
+  --tp-text-faint: #64748b;
+  --tp-border-hard: rgba(56, 189, 248, 0.35);
+  --tp-border-soft: rgba(255, 255, 255, 0.12);
+  --tp-accent: #f59e0b;
+  --tp-accent-soft: rgba(245, 158, 11, 0.15);
+  --tp-shadow-color: rgba(56, 189, 248, 0.3);
+
+  --bg-canvas: #090d16;
+  --bg-card: #111726;
+  --bg-card-hover: #151e32;
+  --bg-subtle: #172033;
+  --bg-tag: #1e293b;
+
+  --grid-line: rgba(56, 189, 248, 0.055);
+  --border-main: rgba(56, 189, 248, 0.35);
+  --border-subtle: rgba(255, 255, 255, 0.12);
+  --border-hover: #38bdf8;
+
+  --text-title: #f8fafc;
+  --text-body: #cbd5e1;
+  --text-muted: #94a3b8;
+  --text-faint: #64748b;
+  
+  --accent-yellow: #fbbf24;
+  --accent-yellow-light: rgba(251, 191, 36, 0.15);
+  --accent-blue: #38bdf8;
+  --accent-blue-light: rgba(56, 189, 248, 0.15);
+  --accent-green: #34d399;
+  --accent-green-light: rgba(52, 211, 153, 0.15);
+  --accent-rose: #f87171;
+
+  --accent-purple: #a78bfa;
+  --accent-purple-hover: #c4b5fd;
+  --accent-purple-soft: rgba(167, 139, 250, 0.15);
+  --accent-purple-border: #8b5cf6;
+  --accent-purple-ring: rgba(167, 139, 250, 0.35);
+  --accent-purple-dark: #c4b5fd;
+  
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.35);
+  --shadow-card: 0 8px 24px -4px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(56, 189, 248, 0.15);
+  --shadow-pop: 3px 3px 0px rgba(56, 189, 248, 0.35);
+  --shadow-pop-lg: 5px 5px 0px rgba(56, 189, 248, 0.35);
+  --shadow-pop-sm: 2px 2px 0px rgba(56, 189, 248, 0.35);
+}
+
+/* ==========================================================================
+   Base & Strict One-Page App-Shell (100dvh, No Global Page Scroll)
+   ========================================================================== */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+  height: 100dvh;
+  margin: 0;
+  padding: 0;
+  overflow: hidden !important; /* 核心：严格禁止整页滚动 */
+  background-color: var(--bg-canvas);
+  color: var(--text-body);
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.25s ease, color 0.25s ease;
+  user-select: none;
+}
+
+#app-root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  height: 100dvh;
+  overflow: hidden;
+  position: relative;
+}
+
+.grid-paper-bg {
+  position: fixed;
+  inset: 0;
+  background-size: 28px 28px;
+  background-image: 
+    linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.font-mono {
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+/* Neo-Brutalist Tactile Card (VI 手册规范：圆角 12-16px, 2px 边框, 4px 硬阴影) */
+.tp-card {
+  background: var(--bg-card);
+  border: 2px solid var(--border-main);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-pop);
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+}
+
+.tp-card-sm {
+  background: var(--bg-card);
+  border: 2px solid var(--border-main);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-pop-sm);
+}
+
+/* Neo-Brutalist Button */
+.tp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-family: var(--tp-font, 'Plus Jakarta Sans', sans-serif);
+  font-weight: 700;
+  font-size: 0.8rem;
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  border: 2px solid var(--border-main);
+  background: var(--bg-card);
+  color: var(--text-title);
+  box-shadow: var(--shadow-pop-sm);
+  cursor: pointer;
+  transition: transform .24s var(--tp-motion-spring, cubic-bezier(.34,1.56,.64,1)), box-shadow .24s, background .15s;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.tp-btn:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: var(--shadow-pop);
+}
+
+.tp-btn:active {
+  transform: translate(1.5px, 1.5px);
+  box-shadow: 0 0 0 transparent;
+}
+
+.tp-btn-primary {
+  background: var(--accent-yellow);
+  color: #111318;
+}
+
+.tp-btn-primary:hover {
+  background: #f59e0b;
+}
+
+.tp-btn-danger {
+  background: var(--accent-rose);
+  color: #ffffff;
+}
+
+.tp-btn-blue {
+  background: var(--accent-blue);
+  color: #ffffff;
+}
+
+/* Tactile Badge */
+.tp-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 1.5px 6px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-main);
+  background: var(--bg-tag);
+  color: var(--text-title);
+  white-space: nowrap;
+}
+
+.tp-badge-yellow {
+  background: var(--accent-yellow-light);
+  color: #b45309;
+}
+
+.tp-badge-blue {
+  background: var(--accent-blue-light);
+  color: #1d4ed8;
+}
+
+.tp-badge-green {
+  background: var(--accent-green-light);
+  color: #047857;
+}
+
+/* 防御性样式：防止任何脚本或样式加载延迟时 SVG 图标无约束膨胀 */
+svg {
+  box-sizing: border-box;
+}
+svg.w-3, svg[class*="w-3 "] { width: 12px; height: 12px; flex-shrink: 0; }
+svg.w-3\.5, svg[class*="w-3.5"] { width: 14px; height: 14px; flex-shrink: 0; }
+svg.w-4, svg[class*="w-4 "] { width: 16px; height: 16px; flex-shrink: 0; }
+svg.w-5, svg[class*="w-5 "] { width: 20px; height: 20px; flex-shrink: 0; }
+svg.w-6, svg[class*="w-6 "] { width: 24px; height: 24px; flex-shrink: 0; }
+
+/* Navigation Tabs */
+.tp-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  border-radius: var(--radius-pill);
+  border: 1.5px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.tp-tab-btn svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.tp-tab-btn:hover {
+  color: var(--text-title);
+  background: var(--bg-subtle);
+}
+
+.tp-tab-btn.active {
+  border-color: var(--border-main);
+  background: var(--bg-card);
+  color: var(--text-title);
+  box-shadow: var(--shadow-pop-sm);
+}
+
+/* 模板与分类筛选按钮选中态 */
+.tp-template-btn.active,
+.tp-filter-btn.active {
+  background: var(--accent-yellow) !important;
+  color: #111318 !important;
+  border-color: var(--border-main) !important;
+  box-shadow: var(--shadow-pop-sm) !important;
+}
+
+/* 官方实时状态徽章高对比度保证 */
+.tp-badge--live {
+  background: var(--tp-color-green-300, #B9EC8F) !important;
+  color: #063427 !important;
+  border-color: #063427 !important;
+}
+.tp-badge--live i {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #063427;
+  margin-right: 4px;
+}
+
+/* 移动端底部导航按钮 */
+.tp-mobile-tab-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 2px;
+  color: var(--text-muted);
+  font-size: 0.62rem;
+  font-weight: 700;
+  gap: 2px;
+  border-radius: var(--radius-sm);
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.tp-mobile-tab-btn.active {
+  color: var(--text-title);
+  background: var(--bg-subtle);
+}
+
+.tp-mobile-tab-btn.active svg {
+  color: var(--accent-yellow);
+}
+
+/* 移动端局部子分栏切换胶囊 (Sub-segment toggle) */
+.tp-subseg-btn {
+  padding: 4px 10px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  border-radius: var(--radius-pill);
+  border: 1.5px solid var(--border-main);
+  background: var(--bg-subtle);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.tp-subseg-btn.active {
+  background: var(--accent-yellow);
+  color: #111318;
+  box-shadow: var(--shadow-pop-sm);
+}
+
+/* 移动端独立切换面板逻辑 */
+@media (max-width: 767px) {
+  .subseg-pane {
+    display: none !important;
+  }
+  .subseg-pane.subseg-active {
+    display: flex !important;
+  }
+  
+  .subseg-min-pane {
+    display: none !important;
+  }
+  .subseg-min-pane.subseg-active {
+    display: flex !important;
+  }
+}
+
+/* 核心容器内部独立滚动窗口 (Internal Scroll Pane) */
+.tp-scroll-pane {
+  flex: 1 1 0%;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* 自定义微型滚动条 */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-subtle);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-main);
+}
+
+/* 知识库左右拖动条与 Wikilink 样式 */
+#obsidianSplitter,
+#memorySplitter {
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+#obsidianSplitter:hover,
+#memorySplitter:hover {
+  cursor: col-resize;
+}
+.tp-wikilink {
+  transition: all 0.15s ease-in-out;
+}
+.tp-wikilink:hover {
+  background-color: rgba(147, 51, 234, 0.2);
+}
+
+@media (max-width: 767px) {
+  .subseg-obs-pane.hidden,
+  .subseg-mem-pane.hidden {
+    display: none !important;
+  }
+  .subseg-mem-pane {
+    display: none !important;
+    width: 100% !important;
+  }
+  .subseg-mem-pane.subseg-active {
+    display: flex !important;
+  }
+}
+
+/* 覆盖 tp-ui.css 中 52px 1fr 的 grid 导致的转写流文字挤压与重叠 Bug */
+.tp-transcript-row {
+  display: flex !important;
+  flex-direction: column !important;
+  grid-template-columns: none !important;
+  gap: 6px !important;
+  padding: 8px 10px !important;
+  margin-bottom: 6px !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+.tp-transcript-row time {
+  padding-top: 0 !important;
+}
+.tp-sentence-text {
+  display: block !important;
+  width: 100% !important;
+  line-height: 1.6 !important;
+  word-break: break-word !important;
+}
+
+/* Markdown 富文本正文排版（用于排版润色成果与知识库笔记） */
+.tp-markdown-body h1 {
+  font-size: 1.15rem;
+  font-weight: 900;
+  color: var(--text-title);
+  margin-top: 0.75rem;
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.25rem;
+  border-bottom: 1.5px solid var(--border-subtle);
+}
+.tp-markdown-body h2 {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--text-title);
+  margin-top: 0.65rem;
+  margin-bottom: 0.35rem;
+}
+.tp-markdown-body h3 {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--text-title);
+  margin-top: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+.tp-markdown-body p {
+  margin-bottom: 0.5rem;
+  line-height: 1.65;
+  color: var(--text-body);
+}
+.tp-markdown-body ul {
+  margin-left: 1.25rem;
+  list-style-type: disc;
+  margin-bottom: 0.5rem;
+}
+.tp-markdown-body ol {
+  margin-left: 1.25rem;
+  list-style-type: decimal;
+  margin-bottom: 0.5rem;
+}
+.tp-markdown-body li {
+  margin-bottom: 0.25rem;
+  line-height: 1.6;
+}
+.tp-markdown-body blockquote {
+  padding: 0.5rem 0.75rem;
+  background: var(--bg-subtle);
+  border-left: 3px solid var(--accent-yellow);
+  border-radius: 4px;
+  margin-bottom: 0.5rem;
+  color: var(--text-body);
+}
+.tp-markdown-body code {
+  font-family: var(--tp-font-mono);
+  font-size: 0.85em;
+  padding: 0.15em 0.35em;
+  border-radius: 4px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+}
+.tp-markdown-body pre {
+  padding: 0.75rem;
+  border-radius: 6px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  overflow-x: auto;
+  margin-bottom: 0.5rem;
+}
+.tp-markdown-body pre code {
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
+/* ==========================================================================
+   Agent Interaction Design System (7 Principles Specification)
+   - Single panel, single goal: quiet row summary for finished processes
+   - Single stage shelf: #shelfAsk floating above chat composer
+   - PixelGrid (3x3) & Colored Status Dots (Text stays black)
+   - Single unified scroll manager
+   - 28px rounded Chat Composer with neutral focus ring
+   ========================================================================== */
+
+/* 1. 紫调组件扩展 */
+.tp-btn-purple {
+  background: var(--accent-purple);
+  color: #ffffff !important;
+  border: 1.5px solid var(--border-main);
+  box-shadow: 2px 2px 0px var(--border-main);
+  font-weight: 700;
+  border-radius: var(--radius-sm);
+  transition: all 0.15s ease;
+}
+.tp-btn-purple:hover {
+  background: var(--accent-purple-hover);
+  transform: translateY(-1px);
+  box-shadow: 3px 3px 0px var(--border-main);
+}
+.tp-badge-purple {
+  background: var(--accent-purple-soft);
+  color: var(--accent-purple-dark, #5b28d9);
+  border: 1px solid var(--accent-purple-border);
+}
+.tp-badge-purple:hover {
+  background: var(--accent-purple-soft);
+  border-color: var(--accent-purple);
+}
+
+/* 2. 3x3 像素阵动画 (PixelGrid - 代替通用菊花图) */
+.tp-pixel-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 3.5px);
+  grid-template-rows: repeat(3, 3.5px);
+  gap: 1.5px;
+  width: 13.5px;
+  height: 13.5px;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.tp-pixel-dot {
+  width: 3.5px;
+  height: 3.5px;
+  background-color: var(--accent-purple);
+  border-radius: 0.5px;
+  opacity: 0.25;
+  animation: tpPixelOrbit 950ms ease-in-out infinite;
+}
+.tp-pixel-dot:nth-child(1) { animation-delay: 0ms; }
+.tp-pixel-dot:nth-child(2) { animation-delay: 100ms; }
+.tp-pixel-dot:nth-child(3) { animation-delay: 200ms; }
+.tp-pixel-dot:nth-child(4) { animation-delay: 700ms; }
+.tp-pixel-dot:nth-child(5) { animation-delay: 850ms; transform: scale(1.15); opacity: 0.85; }
+.tp-pixel-dot:nth-child(6) { animation-delay: 300ms; }
+.tp-pixel-dot:nth-child(7) { animation-delay: 600ms; }
+.tp-pixel-dot:nth-child(8) { animation-delay: 500ms; }
+.tp-pixel-dot:nth-child(9) { animation-delay: 400ms; }
+
+@keyframes tpPixelOrbit {
+  0%, 100% { opacity: 0.25; transform: scale(0.9); }
+  50% { opacity: 1; transform: scale(1.15); background-color: var(--accent-purple); }
+}
+
+/* 3. 流式落笔与光标 (Token Stream & Cursor) */
+.qianji-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1.15em;
+  background-color: var(--accent-purple);
+  vertical-align: -0.18em;
+  margin-left: 2px;
+  border-radius: 1px;
+  animation: qianjiCursorBreathe 0.8s ease-in-out infinite;
+}
+@keyframes qianjiCursorBreathe {
+  0%, 100% { opacity: 1; transform: scaleY(1); }
+  50% { opacity: 0.15; transform: scaleY(0.92); }
+}
+
+.qianji-stream-token {
+  display: inline;
+  animation: qianjiTokenDrop 120ms ease-out forwards;
+}
+@keyframes qianjiTokenDrop {
+  from { opacity: 0.82; transform: translateY(1.5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* 4. 极简摘要行 (QuietRow) - 过程结束后一律收成一行 12.5px 弱化摘要 */
+.tp-quiet-row {
+  display: flex;
+  flex-direction: column;
+  font-size: 12.5px;
+  font-weight: 500;
+  border-radius: 6px;
+  color: var(--text-title);
+  background: transparent;
+  user-select: none;
+  transition: background 0.15s ease;
+  width: 100%;
+}
+.tp-quiet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 24px;
+  padding: 3px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.tp-quiet-header:hover {
+  background: var(--bg-subtle);
+}
+.tp-quiet-chevron {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  color: var(--text-muted);
+}
+.tp-quiet-chevron.rotated {
+  transform: rotate(90deg);
+}
+.tp-quiet-details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 10px;
+  margin-left: 14px;
+  margin-top: 2px;
+  border-left: 2px solid var(--accent-purple-border);
+  background: var(--bg-subtle);
+  border-radius: 0 6px 6px 0;
+  font-size: 11px;
+}
+.tp-quiet-step-item {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  line-height: 1.4;
+}
+
+/* 5. 执行过程组容器 (ProcessGroup) */
+.tp-process-pipeline {
+  border-left: 1.5px solid var(--border-subtle);
+  margin-left: 6px;
+  padding-left: 10px;
+  transition: all 0.25s ease;
+}
+.tp-process-pipeline.live {
+  max-height: 280px;
+  overflow-y: auto;
+  mask-image: linear-gradient(to bottom, transparent 0, black 18px, black 100%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, black 18px, black 100%);
+}
+.tp-process-pipeline.review {
+  max-height: 150px;
+  overflow-y: auto;
+  background: var(--bg-subtle);
+  border-radius: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-subtle);
+}
+.tp-process-step {
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--text-title);
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 2px 0;
+  transition: opacity 0.2s ease;
+}
+.tp-process-step.inactive {
+  opacity: 0.65;
+}
+.tp-process-step.active {
+  opacity: 1;
+  font-weight: 600;
+}
+
+/* 6. 提问架子 (ShelfAsk - 唯一交互舞台，浮在输入框正上方) */
+.tp-shelf-ask {
+  border-radius: 12px;
+  background: var(--bg-card);
+  border: 1.5px solid var(--border-main);
+  box-shadow: 0 -4px 18px rgba(0, 0, 0, 0.05), 0 2px 6px rgba(0, 0, 0, 0.03);
+  padding: 10px 12px;
+  margin-bottom: 6px;
+  animation: shelfSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes shelfSlideUp {
+  from { opacity: 0; transform: translateY(12px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.tp-shelf-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-title);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.tp-shelf-btn:hover {
+  background: var(--accent-purple-soft);
+  border-color: var(--accent-purple);
+  color: var(--accent-purple-dark, #5b28d9);
+  transform: translateY(-1px);
+}
+.tp-shelf-btn.selected {
+  background: var(--accent-purple);
+  border-color: var(--border-main);
+  color: #ffffff;
+  box-shadow: 1.5px 1.5px 0px var(--border-main);
+}
+.tp-shelf-key {
+  font-family: var(--tp-font-mono, monospace);
+  font-size: 10px;
+  font-weight: 800;
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.07);
+  margin-left: 8px;
+}
+
+/* 7. 输入框整体 (ChatComposer - 28px 圆角与中性焦点环) */
+.tp-chat-composer {
+  border-radius: 28px;
+  background: var(--bg-card);
+  border: 1.5px solid var(--border-main);
+  padding: 6px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  box-shadow: var(--shadow-pop-sm);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.tp-chat-composer:focus-within {
+  border-color: var(--border-main);
+  box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.25), 0 4px 14px rgba(15, 23, 42, 0.08);
+}
+.tp-chat-composer textarea {
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  resize: none;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-title);
+  min-height: 24px;
+  max-height: 120px;
+}
+.tp-chat-composer textarea::placeholder {
+  color: var(--text-muted);
+}
+.tp-composer-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 2px;
+}
+.tp-send-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  background: #0f172a;
+  color: #ffffff;
+  border: 1px solid var(--border-main);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+.tp-send-btn:hover {
+  background: #000000;
+  transform: scale(1.05);
+}
+.tp-send-btn.stop {
+  background: #e11d48;
+}
+
+/* 8. 气泡视觉规整 */
+.tp-bubble-user {
+  margin-left: auto;
+  max-width: 85%;
+  padding: 8px 12px;
+  border-radius: 14px 6px 14px 14px;
+  background: var(--accent-purple-soft);
+  border: 1.5px solid var(--accent-purple-border);
+  color: var(--text-title);
+  font-size: 12.5px;
+  line-height: 1.55;
+  word-break: break-word;
+}
+.tp-bubble-assistant {
+  margin-right: auto;
+  width: 100%;
+  padding: 4px 0;
+  color: var(--text-title);
+  font-size: 12.5px;
+  line-height: 1.6;
+  word-break: break-word;
+}
+

@@ -1,0 +1,1070 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-palette="portal" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>TPGoFighting · Voice Brain | T小P 个人长期语音副驾与第二大脑</title>
+  
+  <!-- 1. TP Theme Bootstrap (VI 标准：在 head 首帧执行消灭闪烁) -->
+  <script src="tp-theme.js"></script>
+
+  <!-- 2. TP Favicon 全套 v2.4 (资产包 04-Favicon全套) -->
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
+  <link rel="icon" href="/favicon-16.png" sizes="16x16" type="image/png">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="manifest" href="/site.webmanifest">
+  <meta name="theme-color" content="#FAF8F2">
+
+  <!-- 3. 字体系统 (Plus Jakarta Sans / JetBrains Mono) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+  
+  <!-- 本地化 TailwindCSS 引擎 (解决国内网络 cdn.tailwindcss.com 阻断问题) -->
+  <script src="tailwind.js"></script>
+  
+  <!-- 4. TP UI 组件库核心样式 v2.4.0 与工程适配层 -->
+  <link rel="stylesheet" href="tp-ui.css">
+  <link rel="stylesheet" href="style.css?v=2.9.0_local_tailwind">
+  <script src="icons.js?v=2.6.0"></script>
+</head>
+<body class="h-full overflow-hidden antialiased">
+  <!-- 工程图纸方格网纹背景 -->
+  <div class="grid-paper-bg"></div>
+
+  <!-- 全局单页应用骨架 (Strict 100dvh App-Shell) -->
+  <div id="app-root" class="flex flex-col h-full overflow-hidden relative z-10">
+
+    <!-- 顶部导航栏 (固定 52px，不随内容滚动) -->
+    <header class="h-[52px] shrink-0 border-b border-[var(--border-main)] bg-[var(--bg-canvas)]/95 backdrop-blur px-3 sm:px-6 flex items-center justify-between z-30">
+      <!-- 品牌 Logo (官方等距立体字标 3D Mark + T小P 品牌系统) -->
+      <div class="flex items-center space-x-2.5 whitespace-nowrap shrink-0">
+        <div class="w-8 h-8 rounded-lg border-2 border-[var(--border-main)] bg-[var(--bg-card)] flex items-center justify-center shadow-[2px_2px_0px_var(--border-main)] shrink-0 p-0.5 overflow-hidden">
+          <img src="assets/web/logo-header-transparent.png" alt="TP Logo" class="w-full h-full object-contain">
+        </div>
+        <div class="whitespace-nowrap">
+          <div class="flex items-center space-x-1.5 whitespace-nowrap">
+            <span class="font-black text-xs sm:text-sm tracking-tight text-[var(--text-title)]">TPGoFighting · Voice Brain</span>
+            <span class="tp-badge tp-badge--live text-[9px] uppercase font-mono hidden sm:inline-flex items-center space-x-1">
+              <svg class="w-3.5 h-3.5 text-[var(--accent-yellow)]" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 161 170"><path d="M74.1 10.8c-9.4 5-8.9 18.4.7 23.1l3.2 1.6v17.3l-18.2.4c-18.1.3-18.4.3-23.6 3.2A24 24 0 0 0 23 79v6h-3.7C14 85 9.5 88.1 8 92.5c-1.6 4.7-.9 29 .8 32.2 1.7 3 6.3 5.3 10.7 5.3H23v5.6c0 3.1.5 7.4 1.2 9.5a28 28 0 0 0 12.2 14.2c4 2.1 5 2.2 43.3 2.5 25 .2 40.7-.1 43.1-.8q14.6-3.8 15.6-21.5l.5-8.1c.1-.6 2.2-1.4 4.7-1.7q4.7-.4 7.3-3.1c2.6-2.6 2.6-2.7 2.6-19.1s0-16.5-2.6-19.1a11 11 0 0 0-7.3-3.1c-2.5-.3-4.6-.8-4.7-1.2l-.5-7a24 24 0 0 0-7.7-17.7c-6.1-5.1-8.9-5.8-28.7-6.4l-18.5-.5-.3-8.1-.3-8.2 3.6-2c7-4.2 9.5-12.5 5.5-18.9-3.7-6.1-11.4-8-17.9-4.5m10.3 4.3c3.2 1.5 5.2 6.3 4 9.7-.5 1.4-2.3 3.4-4 4.4-4 2.3-8.8.9-10.9-3.3-2.1-4-1.9-5.7 1.4-9 3.2-3.1 5.5-3.6 9.5-1.8m39.8 46.1c3.2 2 5.2 4.1 6.7 7.2 2.1 4.3 2.2 5.4 1.9 41.4-.3 35.9-.4 37.1-2.4 39.9a23 23 0 0 1-5.5 4.8c-3.2 1.9-5.5 2-41.1 2.3-40.4.3-43.5 0-48.9-4.5-6.6-5.6-6.9-7-6.8-44.3.1-33.9.3-36.8 3.9-41.6 2.3-3.1 7.4-6.5 11.1-7.4 1.9-.5 19.8-.8 39.9-.7l36.5.2zM22.5 107.5v17l-3.1.3c-5.5.5-6.4-1.4-6.6-15.1l.1-14.7c.3-3.3 2.9-5.2 6.6-4.8l3 .3zM147 92c1.8 1.8 2 3.3 2 15.5s-.2 13.7-2 15.5a8 8 0 0 1-4.9 2h-2.9l-.4-16.3c-.2-8.9-.2-16.8 0-17.5.6-1.9 6-1.4 8.2.8"/><path d="M49.9 89.3a12 12 0 0 0-4.9 13.3c3.4 10.3 17.9 11.5 22.5 1.8q3.8-8-3-14.2c-4.3-4-9.5-4.3-14.6-.9m11.6 5.2q4.6 4.6.3 9.2a6.9 6.9 0 0 1-12-4.6c-.2-6.5 7-9.3 11.7-4.6m38.5-6.8a15 15 0 0 0-7.6 8.9c-1.5 7.9 4.2 14.4 12.6 14.4 3.4 0 4.8-.6 7.5-3.3 4.2-4.2 5.2-7.7 3.3-12.5-2.3-6.1-9.8-9.7-15.8-7.5m7.5 4.9c.8.4 2.3 2 3.1 3.6 1.2 2.4 1.3 3.3.2 5.6-2.5 5.1-10.4 5.6-12.6.7-1.7-3.8-1.5-5.3 1.3-8q3.5-3.7 8-1.9m-53.1 40.9c-1.3 3.2.6 3.5 26 3.5s28.2-.4 26.9-3.6c-.8-2.1-52.1-2.1-52.9.1"/></svg>
+              <span>T小P AI 副驾</span>
+            </span>
+          </div>
+          <p class="text-[10px] text-[var(--text-muted)] hidden lg:block leading-none mt-0.5">DJI Mic 流式声学 · 实时逐字稿 · 深度 AI 纪要 · 长期第二大脑</p>
+        </div>
+      </div>
+
+      <!-- PC 端主导航 Tabs (移动端隐藏，在底部显示) -->
+      <nav class="hidden md:flex items-center space-x-1">
+        <button class="tp-tab-btn active flex items-center space-x-1.5" data-tab="tab-live">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2.5" width="6" height="11" rx="3"/><path d="M5.5 10.5C5.5 14.5 8.4 17.5 12 17.5C15.6 17.5 18.5 14.5 18.5 10.5"/><line x1="12" y1="17.5" x2="12" y2="21.5"/></svg>
+          <span>实时工作台</span>
+        </button>
+        <button class="tp-tab-btn flex items-center space-x-1.5" data-tab="tab-minutes">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2.5H6.5C5.4 2.5 4.5 3.4 4.5 4.5V19.5C4.5 20.6 5.4 21.5 6.5 21.5H17.5C18.6 21.5 19.5 20.6 19.5 19.5V7.5L14.5 2.5Z"/><polyline points="14.5 2.5 14.5 7.5 19.5 7.5"/></svg>
+          <span>深度纪要与人设</span>
+        </button>
+        <button class="tp-tab-btn flex items-center space-x-1.5" data-tab="tab-obsidian">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/><path d="M6 6h10M6 10h10M6 14h6"/></svg>
+          <span>Obsidian · LMMWiki</span>
+          <span id="obsidianNavBadge" class="text-[9px] px-1.5 py-0.2 rounded-full bg-[var(--accent-purple)] text-white font-mono font-bold">6.5k</span>
+        </button>
+        <button class="tp-tab-btn flex items-center space-x-1.5" data-tab="tab-memory">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 3.5C8 3.5 6.5 4.5 6 6C4.5 6.5 3.5 8 3.5 10C3.5 11.5 4.5 13 5.5 13.5C4.5 14.5 4.5 16 5.5 17.5C6.5 19 8.5 19.5 10 19C10.5 20 11.5 20.5 12.5 20.5"/><path d="M14.5 3.5C16 3.5 17.5 4.5 18 6C19.5 6.5 20.5 8 20.5 10C20.5 11.5 19.5 13 18.5 13.5C19.5 14.5 19.5 16 18.5 17.5C17.5 19 15.5 19.5 14 19C13.5 20 12.5 20.5 11.5 20.5"/></svg>
+          <span>长期记忆大脑</span>
+          <span id="navMemoryCountBadge" class="text-[9px] px-1.5 py-0.2 rounded-full bg-[var(--accent-yellow)] text-slate-900 font-mono font-bold">3</span>
+        </button>
+        <button class="tp-tab-btn flex items-center space-x-1.5" data-tab="tab-archive">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4" width="19" height="5" rx="1.5"/><path d="M4.5 9V19C4.5 20 5.5 21 6.5 21H17.5C18.5 21 19.5 20 19.5 19V9"/></svg>
+          <span>会话档案</span>
+        </button>
+      </nav>
+
+      <!-- 右侧快捷控制 (麦克风、主题) -->
+      <div class="flex items-center space-x-2">
+        <select id="micSelect" class="bg-[var(--bg-card)] border-1.5 border-[var(--border-main)] text-[11px] rounded-lg px-2 py-1 text-[var(--text-title)] shadow-[1.5px_1.5px_0px_var(--border-main)] max-w-[150px] truncate hidden sm:block">
+          <option value="">正在检测麦克风...</option>
+        </select>
+
+        <button id="btnThemeToggle" aria-label="切换主题" class="w-8 h-8 rounded-lg border-1.5 border-[var(--border-main)] bg-[var(--bg-card)] text-[var(--text-title)] flex items-center justify-center shadow-[1.5px_1.5px_0px_var(--border-main)] hover:bg-[var(--bg-subtle)] transition-all">
+          <span id="themeIcon" class="flex items-center justify-center">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4.5"/><path d="M12 2.5V4.5M12 19.5V21.5M2.5 12H4.5M19.5 12H21.5M5.3 5.3L6.8 6.8M17.2 17.2L18.7 18.7M5.3 18.7L6.8 17.2M17.2 6.8L18.7 5.3"/></svg>
+          </span>
+        </button>
+      </div>
+    </header>
+
+    <!-- 主工作区：占满剩余全部高度 (flex-1 min-h-0，绝不产生整页滚动) -->
+    <main class="flex-1 min-h-0 overflow-hidden p-2.5 sm:p-4 flex flex-col relative">
+
+      <!-- ========================================================================= -->
+      <!-- TAB 1: 实时录制与转写工作台 (Live Console)                                 -->
+      <!-- ========================================================================= -->
+      <div id="tab-live" class="tab-pane flex-1 min-h-0 flex flex-col overflow-hidden">
+        
+        <!-- 移动端顶部紧凑录音控制卡片 (在移动端显示，在 PC 端嵌入左列) -->
+        <div class="md:hidden shrink-0 tp-card p-2.5 mb-2 flex flex-col space-y-2 bg-[var(--bg-card)]">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-1.5">
+              <span id="mobileWsStatus" class="tp-badge text-[10px]">未连接</span>
+              <span id="mobileTimerBadge" class="tp-badge tp-badge-blue text-[10px] font-bold">00:00</span>
+            </div>
+            <div class="flex items-center space-x-1.5">
+              <select id="mobileSelectSentenceSilence" class="bg-[var(--bg-subtle)] border border-[var(--border-subtle)] rounded px-1 py-0.5 text-[9px] font-mono text-[var(--text-title)] cursor-pointer focus:outline-none">
+                <option value="500">500ms</option>
+                <option value="800" selected>800ms(标准)</option>
+                <option value="1200">1200ms(防断)</option>
+              </select>
+              <button id="btnMobileDownloadWav" class="tp-btn text-[10px] py-1 px-2">
+                <span>下载WAV</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="flex items-center space-x-2">
+            <button id="btnMobileToggleRecord" class="tp-btn tp-btn-primary flex-1 py-2 text-xs font-black shadow-[2px_2px_0px_var(--border-main)] flex items-center justify-center space-x-1.5">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2.5" width="6" height="11" rx="3"/><path d="M5.5 10.5C5.5 14.5 8.4 17.5 12 17.5C15.6 17.5 18.5 14.5 18.5 10.5"/></svg>
+              <span>开始录音</span>
+            </button>
+            <div class="h-9 w-28 bg-[var(--bg-subtle)] rounded-lg border border-[var(--border-main)] flex items-center justify-center overflow-hidden px-1 shrink-0">
+              <canvas id="mobileCanvasWaveform" width="120" height="36" class="w-full h-full"></canvas>
+            </div>
+          </div>
+
+          <!-- 移动端局部子分栏切换胶囊 (转写流 / 滑动窗口 / 认知状态) -->
+          <div class="flex items-center justify-between pt-1 border-t border-[var(--border-subtle)] gap-1">
+            <button class="tp-subseg-btn active flex-1 text-center" data-subseg="subseg-asr">转写流</button>
+            <button class="tp-subseg-btn flex-1 text-center" data-subseg="subseg-window">滑动窗口</button>
+            <button class="tp-subseg-btn flex-1 text-center" data-subseg="subseg-state">认知状态</button>
+          </div>
+        </div>
+
+        <!-- 桌面端 3 列网格布局 / 移动端子分栏切换 -->
+        <div class="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-12 gap-3.5 overflow-hidden">
+          
+          <!-- 列 1: 录音控制 & 实时转写流 (桌面占 4 列，移动端由 subseg 控制) -->
+          <section id="col-asr" class="subseg-pane subseg-active md:col-span-4 flex flex-col space-y-3 h-full min-h-0 overflow-hidden">
+            <!-- 桌面端录音卡片 (移动端隐藏) -->
+            <div class="hidden md:flex shrink-0 tp-card p-3 flex-col space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="text-[11px] font-black uppercase text-[var(--text-muted)] tracking-wider">声学采集</span>
+                <div class="flex items-center space-x-1.5 text-xs font-mono">
+                  <span id="wsStatusPill" class="tp-badge">未连接</span>
+                  <span id="timerBadge" class="tp-badge tp-badge-blue font-bold">00:00</span>
+                </div>
+              </div>
+
+              <button id="btnToggleRecord" class="tp-btn tp-btn-primary w-full py-2 text-xs font-extrabold shadow-[2.5px_2.5px_0px_var(--border-main)] flex items-center justify-center space-x-1.5">
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2.5" width="6" height="11" rx="3"/><path d="M5.5 10.5C5.5 14.5 8.4 17.5 12 17.5C15.6 17.5 18.5 14.5 18.5 10.5"/></svg>
+                <span>开始实时录音</span>
+              </button>
+
+              <div class="h-9 w-full bg-[var(--bg-subtle)] rounded-lg border border-[var(--border-main)] flex items-center justify-center overflow-hidden px-2 relative">
+                <canvas id="canvasWaveform" width="360" height="36" class="w-full h-full"></canvas>
+                <span class="absolute right-2 bottom-0.5 text-[8px] font-mono text-[var(--text-muted)]">16kHz · 16-bit PCM</span>
+              </div>
+
+              <div class="flex items-center justify-between pt-0.5 text-[10px]">
+                <button id="btnDownloadWav" class="tp-btn text-[10px] py-0.5 px-2 flex items-center space-x-1 opacity-75">
+                  <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 15V19C20 20 19 21 18 21H6C5 21 4 20 4 19V15"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  <span>下载无损WAV</span>
+                </button>
+                <span id="pcmStatsBadge" class="font-mono text-[var(--text-muted)]">0 帧 (0 KB)</span>
+              </div>
+
+              <!-- 断句停顿灵敏度控制 -->
+              <div class="flex items-center justify-between pt-1 border-t border-[var(--border-subtle)] text-[10px]">
+                <span class="text-[var(--text-muted)] flex items-center space-x-1">
+                  <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                  <span>断句停顿判定</span>
+                </span>
+                <select id="selectSentenceSilence" class="bg-[var(--bg-subtle)] border border-[var(--border-subtle)] rounded px-1.5 py-0.5 text-[10px] font-mono text-[var(--text-title)] cursor-pointer focus:outline-none">
+                  <option value="500">500ms · 紧凑灵敏</option>
+                  <option value="800" selected>800ms · 标准自然 (推荐)</option>
+                  <option value="1200">1200ms · 从容深思 (防抢断)</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- 转写流独立内滚窗口 (tp-scroll-pane) -->
+            <div class="tp-card flex-1 min-h-0 flex flex-col p-3 space-y-2 overflow-hidden">
+              <div class="shrink-0 flex items-center justify-between border-b border-[var(--border-subtle)] pb-1.5">
+                <div class="flex items-center space-x-1.5 min-w-0">
+                  <span class="font-extrabold text-xs text-[var(--text-title)] whitespace-nowrap">分层流式 ASR</span>
+                  <span class="tp-badge tp-badge-green text-[9px] font-mono whitespace-nowrap">Tier 1 极速流</span>
+                  <span class="tp-badge tp-badge-purple text-[9px] font-mono whitespace-nowrap">Tier 2 快修</span>
+                </div>
+                <span id="committedCountBadge" class="text-xs font-mono font-bold text-[var(--accent-blue)] whitespace-nowrap shrink-0 ml-2">0 句</span>
+              </div>
+
+              <!-- Tier 1 草稿流 (感知层: paraformer-realtime-v2 50ms 极速出字流，支持换行不被截断) -->
+              <div id="interimContainer" class="hidden shrink-0 p-2.5 rounded-lg border border-[var(--accent-blue)] bg-[var(--bg-subtle)] text-[var(--text-title)] text-xs flex items-center space-x-2 shadow-sm">
+                <div class="tp-typing shrink-0 py-0 px-1"><i></i><i></i><i></i></div>
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center space-x-1.5 text-[9px] font-bold text-[var(--text-muted)] mb-0.5">
+                    <span>实时感知打字流:</span>
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span>
+                  </div>
+                  <span id="interimText" class="text-xs sm:text-sm font-semibold text-[var(--accent-blue)] break-words">正在聆听...</span>
+                </div>
+              </div>
+
+              <!-- Tier 2 固化历史 (小窗口滚动) -->
+              <div id="committedList" class="tp-scroll-pane space-y-2 pr-1">
+                <div class="h-full flex flex-col items-center justify-center text-[var(--text-muted)] text-center p-4 space-y-2">
+                  <div class="w-12 h-12 rounded-xl bg-[var(--bg-card)] border-1.5 border-[var(--border-main)] shadow-[2px_2px_0px_var(--border-main)] flex items-center justify-center text-[var(--accent-blue)]">
+                    <svg class="w-6 h-6" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 169 172"><path d="M69.5 10.6a75 75 0 0 0-28.3 14.9A68 68 0 0 0 19 78.1c0 9.4-.1 9.6-3.1 12.5-5 4.6-6.9 9.8-6.9 18.9 0 4.4.5 9.6 1 11.6a29 29 0 0 0 12.2 14 49 49 0 0 1 6.7 3.6 14 14 0 0 0 8.8 2.3q9.6 0 13.3-6.3c1.8-2.9 2-5.1 2-24.7s-.2-21.8-2-24.7c-1-1.8-3.4-3.9-5.1-4.9A22 22 0 0 0 28 81.8l-3 2.3v-7.3A62 62 0 0 1 65.3 18a71 71 0 0 1 36.1-1.1 50 50 0 0 1 20.3 9.8A63 63 0 0 1 144.5 84c-.2 0-2.1-1.2-4.2-2.6-3.3-2.2-4.6-2.5-10-2.2-4.9.3-6.8.9-8.9 2.8-5.1 4.8-5.4 6.4-5.4 28.2 0 18.8.2 20.6 2.1 24.3l2.1 3.9-4 3.7c-5.9 5.6-16.4 7.9-17.7 3.9-1.2-3.6-6.6-6-14-6-7.9 0-11.7 1.8-14.1 6.8a12 12 0 0 0 2.6 13.4c2.7 2.6 3.3 2.8 11.2 2.8 9.2 0 11.7-1.1 14.3-6.1 1.2-2.2 2.2-2.9 4.5-2.9 5.2 0 14-4 18.8-8.6 4.1-3.9 5.1-4.4 9.3-4.4 5.6 0 17.3-5.5 22.3-10.5 5.6-5.6 7.1-9.8 7.1-20.5-.1-10.4-1.7-15-6.9-19.9-2.4-2.2-2.6-3.1-2.6-10.5-.1-29.5-11.9-51.4-34-63a72 72 0 0 0-47.5-6M44 86c1 .5 2.2 2.2 2.7 3.7 1.4 4 1 39.3-.5 41.9-2.4 4.5-10.9 5.2-15.1 1.3-3-2.8-3.3-4.8-2.9-24.6.3-17.6.4-18.2 2.7-20.7 1.9-2 3.4-2.6 6.8-2.6 2.5 0 5.3.4 6.3 1m94.5 1.5c2.5 2.4 2.5 2.6 2.5 21.5 0 24.4-.6 26-10.5 26-3.5 0-4.8-.5-6.4-2.6-2-2.5-2.1-4-2.1-22.4s.1-19.9 2.1-22.4c1.7-2.2 2.8-2.6 7-2.6 4 0 5.5.5 7.4 2.5M22 110.6c0 15.9-.2 17.5-1.6 16.3Q15 122.4 15 110c0-4.5.5-9.1 1.1-10.3a24 24 0 0 1 5.6-6.7c.2 0 .3 7.9.3 17.6M151.6 97c5.1 7.6 4.3 21.8-1.6 28.3l-2.9 3.2-.1-17.8c0-11 .4-17.7 1-17.7s2.2 1.8 3.6 4m-59.2 50.6c1.8 1.8 2 4.7.6 7.5-.9 1.6-2.2 1.9-7.7 1.9-4.8 0-7.2-.5-8.5-1.7-2.2-2-2.3-5.1-.1-7.5s13.4-2.6 15.7-.2"/></svg>
+                  </div>
+                  <p class="text-[11px] font-bold text-[var(--text-title)]">静候声音输入...</p>
+                  <p class="text-[10px] text-[var(--text-muted)]">开启麦克风即可全双工流式识别<br>每句话固化后自动进入认知滑动窗口</p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- 列 2: 滑动窗口状态机 & 快轨副驾 (桌面占 4 列) -->
+          <section id="col-window" class="subseg-pane hidden md:flex md:col-span-4 flex-col space-y-3 h-full min-h-0 overflow-hidden">
+            <!-- 调度器与当前窗口切片合成卡片 (高度规整，消除碎片卡片，与列1顶部卡片平齐) -->
+            <div class="tp-card p-3 shrink-0 flex flex-col space-y-2">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-1.5">
+                  <span class="font-extrabold text-xs text-[var(--text-title)]">滑动窗口调度器</span>
+                  <span class="tp-badge tp-badge-blue text-[9px] font-mono">Tier 2 调度</span>
+                </div>
+                <button id="btnForceEvolve" class="tp-btn text-[10px] py-1 px-2.5 flex items-center space-x-1 border border-[var(--border-subtle)] hover:border-[var(--accent-blue)]">
+                  <svg class="w-3 h-3 text-[var(--accent-blue)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                  <span>立即演进</span>
+                </button>
+              </div>
+
+              <div class="space-y-1">
+                <div class="flex justify-between text-[11px] text-[var(--text-muted)]">
+                  <span id="strideText">0 / 10 句 (步长进度)</span>
+                  <span id="windowRangeBadge" class="font-mono font-bold text-[var(--accent-blue)]">[未激活]</span>
+                </div>
+                <div class="w-full bg-[var(--bg-subtle)] h-1.5 rounded-full border border-[var(--border-main)] overflow-hidden">
+                  <div id="strideProgress" class="bg-[var(--accent-yellow)] h-full w-0 transition-all duration-300"></div>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-2 pt-1 border-t border-[var(--border-subtle)] text-[10px]">
+                <div class="flex items-center justify-between">
+                  <span class="text-[var(--text-muted)]">窗口大小:</span>
+                  <span id="valWindowSize" class="font-mono font-bold text-[var(--text-title)]">15</span>
+                  <input id="inputWindowSize" type="range" min="5" max="30" value="15" class="tp-slider w-16">
+                </div>
+                <div class="flex items-center justify-between">
+                  <span class="text-[var(--text-muted)]">步长:</span>
+                  <span id="valStride" class="font-mono font-bold text-[var(--text-title)]">10</span>
+                  <input id="inputStride" type="range" min="3" max="20" value="10" class="tp-slider w-16">
+                </div>
+              </div>
+
+              <!-- 当前活跃窗口切片预览 (内嵌在同一卡片内) -->
+              <div class="pt-1.5 border-t border-[var(--border-subtle)] flex flex-col space-y-1">
+                <div class="flex items-center justify-between text-[10px] text-[var(--text-muted)]">
+                  <span class="font-bold">窗口切片预览</span>
+                  <div class="flex items-center space-x-1.5 text-[9px]">
+                    <span class="inline-flex items-center"><span class="w-1.5 h-1.5 rounded-full bg-[var(--accent-yellow)] mr-1"></span>重叠5句</span>
+                    <span class="inline-flex items-center"><span class="w-1.5 h-1.5 rounded-full bg-[var(--accent-blue)] mr-1"></span>增量</span>
+                  </div>
+                </div>
+                <div id="windowItemsContainer" class="tp-scroll-pane space-y-1 pr-1 max-h-16 overflow-y-auto">
+                  <div class="py-1 flex items-center justify-center text-[var(--text-muted)] text-[10px]">
+                    等待文本填充...
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 快轨副驾 (独立小窗口滚动) -->
+            <div class="tp-card flex-1 min-h-0 flex flex-col p-3 space-y-2 overflow-hidden">
+              <div class="shrink-0 flex items-center justify-between border-b border-[var(--border-subtle)] pb-1.5">
+                <div class="flex items-center space-x-1.5">
+                  <span class="font-extrabold text-xs text-[var(--text-title)]">快轨耳旁副驾</span>
+                  <span class="tp-badge text-[9px] font-mono">Fast-Track &lt;800ms</span>
+                </div>
+                <span class="text-[10px] text-[var(--text-muted)]">实时术语/待办捕捉</span>
+              </div>
+
+              <div id="fastInsightsFeed" class="tp-scroll-pane space-y-2 pr-1">
+                <div class="h-full flex flex-col items-center justify-center text-[var(--text-muted)] text-[11px] text-center p-3 space-y-2">
+                  <div class="w-10 h-10 rounded-xl bg-[var(--bg-card)] border-1.5 border-[var(--border-main)] shadow-[1.5px_1.5px_0px_var(--border-main)] flex items-center justify-center text-[var(--accent-purple)]">
+                    <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 156 151"><path d="M121.7 7.7c-.3.5-1.3 3.6-2.2 6.9a32 32 0 0 1-4.7 9.8c-3.2 3.9-9.4 7.6-12.6 7.6-2.4 0-4.6 2.5-3.9 4.4.3.7 2.2 1.7 4.3 2.1 8.6 1.6 13.8 6.6 16.9 16.2 3 9.3 5 9.2 8-.1q4.2-12.7 14.6-15.7c2.4-.7 5.1-1.8 5.9-2.6 1.3-1.1 1.3-1.5 0-2.6-.8-.8-3.5-1.9-6-2.7-6.6-1.8-12.4-8-14.5-15.5l-2-7.3c-.5-1.3-3.1-1.7-3.8-.5m11 24.8c1.8 1.1 3.2 2.2 3.2 2.5s-1.9 1.9-4.2 3.5a26 26 0 0 0-6.2 6.7l-2.1 3.6-2.2-3.8a26 26 0 0 0-6.2-6.7c-2.2-1.5-3.9-3-3.9-3.3s1.4-1.4 3.2-2.5a26 26 0 0 0 6.2-6.5l3-4.5 3 4.5c1.6 2.5 4.4 5.4 6.2 6.5m-98.1-9c-.3.9-.6 2.5-.6 3.5 0 4.3-4.3 13.1-8.5 17.4a20 20 0 0 1-10.6 6.3c-5.1 1.5-6.5 2.4-6.7 4.1q-.6 2.2 2.5 2.8c10.8 2.4 16 6.1 20.2 14.5 1.7 3.4 3.1 7.4 3.1 8.9 0 3.6 2.4 5.7 4.5 4q1.3-1.2 1.5-2.6c0-.7 1-3.9 2.1-7.1a28 28 0 0 1 17.6-16.9c9.2-2.9 9.3-5.1.5-7.8-10.5-3.3-16.4-9.8-19.3-21.5-1.3-5.1-2.1-6.7-3.6-6.9q-2-.2-2.7 1.3m12.6 26.6a25 25 0 0 0 6.1 3.9c.6 0-.9 1.3-3.4 2.9-5.3 3.4-8 6.3-10.7 11.4l-2.1 3.9-1.6-3.4a37 37 0 0 0-11.8-12.4l-2.8-1.5 3.9-2.7c4.9-3.3 8.7-7.9 10.8-12.7l1.5-3.7 2.6 5.2c1.6 3.2 4.4 6.6 7.5 9.1m43.1 16.1c-.6.7-1.5 3.9-2.1 7a35.5 35.5 0 0 1-28.7 28.7c-3.4.5-4 1-4 3.1s.6 2.5 4.5 3.2a35 35 0 0 1 28.6 28.6c1.3 8.4 5.6 8.2 7.4-.5a35 35 0 0 1 25.8-27.8q13-4.2 1.2-7.5c-15.4-4.6-23.8-13.5-27.1-28.5q-2.3-10.6-5.6-6.3m11.5 29.1c2 2.1 6.1 5.1 8.9 6.5l5.3 2.7-5.4 2.8a37 37 0 0 0-15.5 15.6l-2.9 5.4-2.5-4.9a46 46 0 0 0-17.2-16.8l-3.8-1.6 5.1-2.6c6-3 13-10.4 16.2-17l2.2-4.7 2.9 5.4a56 56 0 0 0 6.7 9.2"/></svg>
+                  </div>
+                  <p class="font-bold text-xs text-[var(--text-title)]">实时 AI 洞察快轨</p>
+                  <p class="text-[10px] text-[var(--text-muted)]">提到黑话术语、行动待办或重大决策时，&lt;800ms 毫秒级浮现提示卡</p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- 列 3: 全局认知状态 (桌面占 4 列) -->
+          <section id="col-state" class="subseg-pane hidden md:flex md:col-span-4 flex-col h-full min-h-0 overflow-hidden">
+            <div class="tp-card p-3 flex-1 min-h-0 flex flex-col space-y-2.5 overflow-hidden">
+              <!-- 议题与进展 (固定高度) -->
+              <div class="shrink-0 space-y-1.5 border-b border-[var(--border-subtle)] pb-2">
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center space-x-1.5">
+                    <span class="font-extrabold text-xs text-[var(--text-title)]">全局认知状态</span>
+                    <span class="tp-badge tp-badge-yellow text-[9px] font-mono">Tier 3</span>
+                  </div>
+                  <div id="llmStatusBadge" class="tp-badge font-mono text-[9px]">就绪</div>
+                </div>
+
+                <div class="p-2 rounded-lg bg-[var(--bg-subtle)] border border-[var(--border-main)]">
+                  <span class="text-[9px] uppercase font-bold text-[var(--text-muted)] block">核心议题</span>
+                  <p id="currentTopic" class="text-xs font-extrabold text-[var(--text-title)] truncate mt-0.5">等待开讲...</p>
+                </div>
+
+                <div class="tp-msg--reasoning text-[11px] py-1.5 px-2.5">
+                  <span class="font-extrabold text-[var(--tp-accent)] flex items-center space-x-1">
+                    <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/></svg>
+                    <span>本轮推演</span>
+                  </span>
+                  <p id="deltaSummary" class="text-[10px] leading-tight mt-0.5 truncate text-[var(--tp-text-sub)]">暂无演进</p>
+                </div>
+              </div>
+
+              <!-- 决策/待办/疑问 (内部独立滚动小窗口) -->
+              <div class="tp-scroll-pane space-y-3 pr-1">
+                <!-- 关键决策 -->
+                <div>
+                  <div class="flex items-center space-x-1 text-[11px] font-bold text-[var(--text-title)] mb-1">
+                    <svg class="w-3 h-3 text-[var(--accent-green)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    <span>决策与共识</span>
+                  </div>
+                  <ul id="keyDecisionsList" class="space-y-1">
+                    <div class="text-[10px] text-[var(--text-muted)]">暂无决策结论</div>
+                  </ul>
+                </div>
+
+                <!-- 待办清单 -->
+                <div>
+                  <div class="flex items-center space-x-1 text-[11px] font-bold text-[var(--text-title)] mb-1">
+                    <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.5" width="10" height="4" rx="1.5"/><path d="M16 4.5H19V20.5H5V4.5H8"/></svg>
+                    <span>执行待办项</span>
+                  </div>
+                  <ul id="actionItemsList" class="space-y-1">
+                    <div class="text-[10px] text-[var(--text-muted)]">暂无待办</div>
+                  </ul>
+                </div>
+
+                <!-- 未决疑问 -->
+                <div>
+                  <div class="flex items-center space-x-1 text-[11px] font-bold text-[var(--text-title)] mb-1">
+                    <svg class="w-3 h-3 text-[var(--accent-yellow)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/></svg>
+                    <span>未决开放疑问</span>
+                  </div>
+                  <ul id="unresolvedQuestionsList" class="space-y-1">
+                    <div class="text-[10px] text-[var(--text-muted)]">暂无开放疑问</div>
+                  </ul>
+                </div>
+              </div>
+
+              <!-- 底部一键结会按钮 (固定在卡片底部) -->
+              <div class="shrink-0 pt-2 border-t border-[var(--border-subtle)]">
+                <button id="btnEndAndGenerateMinutes" class="tp-btn tp-btn-primary text-xs py-1.5 px-3 w-full flex items-center justify-center space-x-1.5 font-bold shadow-sm">
+                  <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2.5H6.5V21.5H17.5V7.5L14.5 2.5Z"/></svg>
+                  <span>结束会议并生成深度纪要</span>
+                </button>
+              </div>
+            </div>
+          </section>
+
+        </div>
+      </div>
+
+      <!-- ========================================================================= -->
+      <!-- TAB 2: 深度 AI 纪要与多视角人设总结 (Structured Minutes)                    -->
+      <!-- ========================================================================= -->
+      <div id="tab-minutes" class="tab-pane hidden flex-1 min-h-0 flex flex-col overflow-hidden space-y-2.5">
+        <!-- 人设选择与操作控制栏 (固定在顶部) -->
+        <div class="shrink-0 tp-card p-2.5 flex flex-wrap items-center justify-between gap-2 bg-[var(--bg-card)]">
+          <!-- 当前激活的人设视角胶囊 -->
+          <div class="flex items-center space-x-2">
+            <div id="activePersonaCapsule" class="flex items-center space-x-2 py-1 px-2.5 rounded-lg border-1.5 border-[var(--border-main)] bg-[var(--bg-subtle)] shadow-[1px_1px_0px_var(--border-main)] cursor-pointer hover:bg-[var(--bg-card)] transition-all" title="点击切换 10 位 Koboyo 角色人设">
+              <div id="activePersonaAvatar" class="w-6 h-6 flex items-center justify-center shrink-0">
+                <!-- 由 app.js 注入当前 Koboyo Avatar SVG -->
+              </div>
+              <div class="flex flex-col">
+                <div class="flex items-center space-x-1.5">
+                  <span id="activePersonaName" class="text-xs font-black text-[var(--text-title)]">红队侦探</span>
+                  <span id="activePersonaBadge" class="tp-badge tp-badge-rose text-[9px] font-bold">反方拷问官</span>
+                </div>
+                <span id="activePersonaTitle" class="text-[10px] text-[var(--text-muted)] truncate max-w-[180px] sm:max-w-[260px]">挑刺审计官 · 攻击性安全与漏洞审查</span>
+              </div>
+            </div>
+
+            <!-- 打开人设大弹窗按钮 -->
+            <button id="btnOpenPersonaModal" class="tp-btn text-xs py-1.5 px-2.5 flex items-center space-x-1 border-1.5 border-[var(--accent-purple)] bg-[var(--accent-purple)]/10 text-[var(--text-title)] hover:bg-[var(--accent-purple)]/20 transition-all">
+              <svg class="w-3.5 h-3.5 text-[var(--accent-purple)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              <span>切换人设 (10位小人视角)</span>
+            </button>
+          </div>
+
+          <div class="flex items-center space-x-1.5">
+            <button id="btnGenerateMinutes" class="tp-btn tp-btn-primary text-xs py-1.5 px-3 flex items-center space-x-1 font-bold">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+              <span id="btnGenerateMinutesLabel">以此人设生成纪要</span>
+            </button>
+            <button id="btnPolishDraft" class="tp-btn tp-btn-yellow text-xs py-1.5 px-2.5 flex items-center space-x-1" title="将口语流水账深度重构为结构分明的正式汇报草稿">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 2 4 4-12 12H6v-4L18 2z"/><path d="m15 5 4 4"/></svg>
+              <span>排版润色</span>
+            </button>
+            <button id="btnSyncObsidian" class="tp-btn tp-btn-blue text-xs py-1.5 px-2.5 flex items-center space-x-1" title="写入 /home/ubuntu/obsidian-vault 并自动建立双向链接与 FTS5/Embedding 索引">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/><path d="M6 6h10M6 10h10M6 14h6"/></svg>
+              <span>同步至 Obsidian</span>
+              <span id="obsidianSyncMiniBadge" class="text-[9px] px-1 rounded bg-black/20 text-white font-mono">LMMWiki</span>
+            </button>
+            <button id="btnExtractToMemory" class="tp-btn text-xs py-1.5 px-2 flex items-center space-x-1" title="沉淀为第二大脑长期记忆">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 3.5C8 3.5 6.5 4.5 6 6C4.5 6.5 3.5 8 3.5 10C3.5 11.5 4.5 13 5.5 13.5C4.5 14.5 4.5 16 5.5 17.5C6.5 19 8.5 19.5 10 19C10.5 20 11.5 20.5 12.5 20.5"/><path d="M14.5 3.5C16 3.5 17.5 4.5 18 6C19.5 6.5 20.5 8 20.5 10C20.5 11.5 19.5 13 18.5 13.5C19.5 14.5 19.5 16 18.5 17.5C17.5 19 15.5 19.5 14 19C13.5 20 12.5 20.5 11.5 20.5"/></svg>
+              <span class="hidden sm:inline">沉淀记忆</span>
+            </button>
+            <button id="btnExportMd" class="tp-btn text-xs py-1.5 px-2 flex items-center space-x-1">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 15V19C20 20 19 21 18 21H6C5 21 4 20 4 19V15"/><polyline points="7 10 12 15 17 10"/></svg>
+              <span class="hidden sm:inline">导出 MD</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 移动端子切换胶囊 (纪要内容 / 人设深度审查) -->
+        <div class="md:hidden shrink-0 flex items-center justify-between gap-1 px-1">
+          <button class="tp-subseg-btn active flex-1 text-center" data-subseg-min="subseg-min-main">速览 & 决策 & 实体</button>
+          <button class="tp-subseg-btn flex-1 text-center" data-subseg-min="subseg-min-redteam">人设专属审查 & 导图</button>
+        </div>
+
+        <!-- 自动静默同步至 Obsidian Vault 状态提示条 -->
+        <div id="obsidianAutoSyncBadge" class="hidden shrink-0 flex items-center justify-between p-2 rounded-lg bg-[var(--accent-purple)]/10 border border-[var(--accent-purple)] text-xs text-[var(--accent-purple)]">
+          <div class="flex items-center space-x-1.5 min-w-0">
+            <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+            <span class="truncate">已自动静默同步至 Obsidian Vault: <code id="obsidianAutoSyncPath" class="font-mono font-bold text-[11px] underline cursor-pointer"></code></span>
+          </div>
+          <button id="btnViewSyncedNote" class="tp-btn tp-btn-secondary text-[10px] py-0.5 px-2 font-bold shrink-0 ml-2">在知识库查看</button>
+        </div>
+
+        <!-- 纪要内容卡片主体 (各自内部独立滚动) -->
+        <div class="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-12 gap-3.5 overflow-hidden">
+          
+          <!-- 左侧：30秒速览 + 决策对账 + 知识实体网络 或 排版润色正式稿 (桌面占 7 列) -->
+          <div id="col-min-main" class="subseg-min-pane subseg-active md:col-span-7 flex flex-col h-full min-h-0 overflow-hidden space-y-2">
+            <!-- 视图模式切换标签页 -->
+            <div class="shrink-0 flex items-center justify-between border-b border-[var(--border-subtle)] pb-1.5 px-0.5">
+              <div class="flex items-center space-x-1.5">
+                <button id="btnMinutesTabStandard" class="tp-btn text-xs py-1 px-2.5 font-bold bg-[var(--accent-yellow)] text-slate-900 border-1.5 border-[var(--border-main)] shadow-[1px_1px_0px_var(--border-main)]">
+                  <span>结构化纪要与决策对账</span>
+                </button>
+                <button id="btnMinutesTabPolish" class="tp-btn text-xs py-1 px-2.5 bg-[var(--bg-card)] text-[var(--text-muted)] border border-[var(--border-subtle)] hover:border-[var(--border-main)] hover:text-[var(--text-title)]">
+                  <span>排版润色正式稿</span>
+                  <span id="badgePolishDraftReady" class="hidden tp-badge tp-badge-green text-[8px] font-mono ml-1">已就绪</span>
+                </button>
+              </div>
+              <span class="text-[10px] text-[var(--text-muted)] hidden sm:inline">deepseek-flash 认知分层</span>
+            </div>
+
+            <!-- 视图 A: 标准结构化纪要 (30秒速览 + 决策对账 + 待办 + 实体网络) -->
+            <div id="viewStandardMinutes" class="flex-1 min-h-0 flex flex-col space-y-2.5 overflow-hidden">
+              <!-- 30秒高管速览 (固定卡片) -->
+              <div class="tp-card p-3.5 shrink-0 bg-[var(--accent-yellow-light)] border-2 border-[var(--border-main)] space-y-1.5">
+                <div class="flex items-center space-x-1.5 text-[10px] font-black uppercase text-amber-900">
+                  <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                  <span>30 秒极简高管速览</span>
+                </div>
+                <h2 id="minutesTitle" class="text-base font-black text-[var(--text-title)] leading-snug">暂无生成的纪要</h2>
+                <ul id="minutesTldrList" class="space-y-1 text-xs text-[var(--text-title)] font-medium">
+                  <li class="text-[var(--text-muted)]">点击上方“以此人设生成纪要”，模型将根据当前选定人设深度总结。</li>
+                </ul>
+              </div>
+
+              <!-- 决策、待办与 LMMWiki 实体 (内部独立滚动) -->
+              <div class="tp-card flex-1 min-h-0 flex flex-col p-3 space-y-2 overflow-hidden">
+                <div class="tp-scroll-pane space-y-3.5 pr-1">
+                  <!-- 决策对账单 -->
+                  <div>
+                    <div class="flex items-center space-x-1.5 text-xs font-black text-[var(--text-title)] mb-1.5">
+                      <span class="tp-badge tp-badge-green p-0.5">
+                        <svg class="w-2.5 h-2.5 text-[var(--accent-green)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                      </span>
+                      <span>决策与敲定对账单</span>
+                    </div>
+                    <ul id="minutesDecisionsList" class="space-y-1.5 text-xs">
+                      <div class="text-[var(--text-muted)] text-[11px]">尚未提炼决策</div>
+                    </ul>
+                  </div>
+
+                  <!-- 落地执行待办 -->
+                  <div>
+                    <div class="flex items-center space-x-1.5 text-xs font-black text-[var(--text-title)] mb-1.5">
+                      <span class="tp-badge tp-badge-blue p-0.5">
+                        <svg class="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>
+                      </span>
+                      <span>落地执行待办</span>
+                    </div>
+                    <ul id="minutesActionList" class="space-y-1.5 text-xs">
+                      <div class="text-[var(--text-muted)] text-[11px]">尚未提炼待办</div>
+                    </ul>
+                  </div>
+
+                  <!-- LMMWiki 知识实体网络与双向链接 -->
+                  <div id="minutesEntitiesContainer">
+                    <div class="flex items-center justify-between mb-1.5">
+                      <div class="flex items-center space-x-1.5 text-xs font-black text-[var(--text-title)]">
+                        <span class="tp-badge tp-badge-purple p-0.5">
+                          <svg class="w-2.5 h-2.5 text-[var(--accent-purple)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+                        </span>
+                        <span>涉及知识实体与双向链接</span>
+                      </div>
+                      <span class="text-[10px] text-[var(--text-muted)]">同步至 03-Wiki/LMMWiki/</span>
+                    </div>
+                    <div id="minutesEntitiesList" class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                      <div class="col-span-full text-[var(--text-muted)] text-[11px]">提炼纪要后在此生成实体概念卡片，支持一键注入 Obsidian Vault</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 视图 B: 排版润色正式汇报稿 (富文本 Markdown 阅读器，独立卡片与内滚) -->
+            <div id="viewPolishedDraft" class="hidden flex-1 min-h-0 flex flex-col tp-card p-3 sm:p-4 space-y-2 bg-[var(--bg-card)] border-2 border-[var(--border-main)] shadow-[2px_2px_0px_var(--border-main)] overflow-hidden">
+              <div class="shrink-0 flex items-center justify-between pb-2 border-b border-[var(--border-subtle)]">
+                <div class="flex items-center space-x-2">
+                  <span class="tp-badge tp-badge-yellow text-[9px] font-mono">正式汇报草稿</span>
+                  <span id="polishedDraftMeta" class="text-[10px] text-[var(--text-muted)]">由 deepseek-flash 从口语流水账结构化润色</span>
+                </div>
+                <div class="flex items-center space-x-1.5">
+                  <button id="btnCopyPolishedDraft" class="tp-btn text-xs py-1 px-2.5 flex items-center space-x-1 font-bold">
+                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                    <span>复制正文</span>
+                  </button>
+                  <button id="btnBackToStandardMinutes" class="tp-btn text-xs py-1 px-2 flex items-center space-x-1 text-[var(--text-muted)] hover:text-[var(--text-title)]">
+                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                    <span>返回标准纪要</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Markdown 正文富渲染区 (独立滚动窗口) -->
+              <div id="polishedDraftContent" class="tp-scroll-pane tp-markdown-body flex-1 min-h-0 pr-1 text-xs text-[var(--text-body)] leading-relaxed space-y-2">
+                <div class="p-6 text-center text-[var(--text-muted)] space-y-2">
+                  <p class="font-bold text-[var(--text-title)]">尚未进行排版润色</p>
+                  <p class="text-[11px]">点击上方【排版润色】按钮，deepseek-flash 将立即将口语流水账重构为结构清晰的正式邮件/汇报草稿并在此呈现。</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 右侧：人设专属审查产物 + 导图 + 同步状态 (桌面占 5 列) -->
+          <div id="col-min-redteam" class="subseg-min-pane hidden md:flex md:col-span-5 flex-col h-full min-h-0 overflow-hidden space-y-2">
+            <!-- 右列对齐顶栏 -->
+            <div class="shrink-0 flex items-center justify-between border-b border-[var(--border-subtle)] pb-1.5 px-0.5 h-[31px]">
+              <div class="flex items-center space-x-1.5">
+                <span class="text-xs font-bold text-[var(--text-title)] flex items-center space-x-1">
+                  <svg class="w-3.5 h-3.5 text-[var(--accent-purple)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                  <span>角色人设专属审计</span>
+                </span>
+                <span id="personaRoleMiniBadge" class="tp-badge tp-badge-rose text-[9px] font-mono">红队侦探</span>
+              </div>
+              <span class="text-[10px] text-[var(--text-muted)]">独立批判思维</span>
+            </div>
+
+            <!-- 角色人设专属产物卡片 (动态风格，内部独立滚动) -->
+            <div id="personaSpecialCard" class="tp-card p-3.5 flex-1 min-h-0 flex flex-col border-2 border-[var(--border-main)] overflow-hidden space-y-2 bg-[var(--bg-card)]">
+              <div class="shrink-0 flex items-center justify-between pb-1.5 border-b border-[var(--border-subtle)]">
+                <div class="flex items-center space-x-2">
+                  <span id="personaSpecialAvatar" class="w-6 h-6 flex items-center justify-center shrink-0">
+                    <!-- SVG -->
+                  </span>
+                  <div>
+                    <span id="personaSpecialHeader" class="font-black text-xs text-[var(--text-title)]">人设专属深度审查</span>
+                    <span id="personaSpecialRoleBadge" class="tp-badge tp-badge-rose text-[9px] ml-1">红队侦探</span>
+                  </div>
+                </div>
+                <span class="text-[9px] text-[var(--text-muted)] font-mono">专属产物</span>
+              </div>
+
+              <!-- 角色口吻总结判词 -->
+              <div id="personaSpecialQuoteBox" class="p-2 rounded bg-[var(--bg-subtle)] border border-[var(--border-subtle)] text-[11px] text-[var(--text-title)] leading-relaxed">
+                “点击‘以此人设生成纪要’，角色将从专属视角剖析录音材料。”
+              </div>
+
+              <!-- 专属条目列表 (内部滚动) -->
+              <div class="tp-scroll-pane space-y-2 pr-1 text-xs">
+                <ul id="personaSpecialList" class="space-y-1.5 text-[var(--text-body)] text-[11px]">
+                  <li class="text-[var(--text-muted)]">尚未生成专属产物清单</li>
+                </ul>
+
+                <div class="pt-2 border-t border-[var(--border-subtle)]">
+                  <span class="font-bold text-[var(--accent-yellow)] flex items-center space-x-1 mb-1 text-[11px]">
+                    <svg class="w-3 h-3 text-[var(--accent-yellow)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                    <span>未决遗留风险:</span>
+                  </span>
+                  <ul id="minutesRisksList" class="space-y-1 text-[var(--text-body)] text-[11px]">
+                    <li class="text-[var(--text-muted)]">生成纪要后在此展示遗留风险</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            <!-- 思维导图结构 (固定小高度) -->
+            <div class="tp-card p-3 shrink-0 h-32 flex flex-col space-y-1 overflow-hidden">
+              <div class="flex items-center justify-between">
+                <span class="text-[11px] font-black text-[var(--text-title)] flex items-center space-x-1">
+                  <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="12" r="2.5"/><circle cx="19" cy="6" r="2.5"/><circle cx="19" cy="18" r="2.5"/></svg>
+                  <span>思维导图大纲</span>
+                </span>
+                <span id="obsidianSyncedNotice" class="text-[10px] text-[var(--accent-green)] hidden flex items-center space-x-1">
+                  <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                  <span>已入库</span>
+                </span>
+              </div>
+              <pre id="minutesMindmap" class="tp-scroll-pane bg-[var(--bg-subtle)] p-2 rounded border border-[var(--border-subtle)] text-[10px] font-mono text-[var(--text-body)] whitespace-pre-wrap">等待生成导图...</pre>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ========================================================================= -->
+      <!-- TAB 3: Obsidian LMMWiki 知识库与联合问答 (恢复经典双列架构)                -->
+      <!-- ========================================================================= -->
+      <div id="tab-obsidian" class="tab-pane hidden flex-1 min-h-0 flex flex-col overflow-hidden space-y-2.5">
+        <!-- 顶部 Vault 状态与控制条 -->
+        <div class="shrink-0 tp-card p-2.5 sm:p-3 flex flex-wrap items-center justify-between gap-2 bg-[var(--bg-card)] border-1.5 border-[var(--border-main)]">
+          <div class="flex items-center space-x-2.5">
+            <div class="w-8 h-8 rounded-xl bg-[var(--accent-purple)]/15 border-1.5 border-[var(--border-main)] text-[var(--accent-purple)] flex items-center justify-center font-bold shadow-[1.5px_1.5px_0px_var(--border-main)] shrink-0">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/><path d="M6 6h10M6 10h10M6 14h6"/></svg>
+            </div>
+            <div>
+              <div class="flex items-center space-x-2">
+                <h3 class="font-black text-xs sm:text-sm text-[var(--text-title)]">Obsidian Vault & LMMWiki 认知总线</h3>
+                <span id="obsidianStatusBadge" class="tp-badge tp-badge-green text-[9px] font-mono">Vault 在线</span>
+                <span id="obsidianAgentBackendBadge" class="tp-badge tp-badge-blue text-[9px]">Hermes + Native RAG</span>
+              </div>
+              <p class="text-[10px] text-[var(--text-muted)] flex items-center space-x-2 mt-0.5">
+                <span id="obsidianVaultPath" class="font-mono">/home/ubuntu/obsidian-vault</span>
+                <span>•</span>
+                <span id="obsidianStatsNotes">6,522 篇笔记 · 60,101 向量</span>
+                <span>•</span>
+                <span id="obsidianVoiceNotesCount">录音材料: 0 篇</span>
+              </p>
+            </div>
+          </div>
+
+          <div class="flex items-center space-x-1.5">
+            <button id="btnSyncCurrentToObsidianDirect" class="tp-btn tp-btn-purple text-xs py-1.5 px-3 flex items-center space-x-1 font-bold">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M5 10l7 7 7-7"/><path d="M4 21h16"/></svg>
+              <span>同步当前录音至 Vault</span>
+            </button>
+            <button id="btnRefreshObsidian" class="tp-btn text-xs py-1.5 px-2.5 flex items-center space-x-1">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 4v6h-6M3 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L21 10M1 14l2.64 2.64A9 9 0 0 0 20.49 15"/></svg>
+              <span>刷新索引</span>
+            </button>
+            <a href="https://obsidian.tpgofighting.top" target="_blank" class="tp-btn text-xs py-1.5 px-2.5 flex items-center space-x-1" title="打开独立 Obsidian 站点">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+              <span class="hidden sm:inline">访问 obsidian 站点</span>
+            </a>
+          </div>
+        </div>
+
+        <!-- 主内容区：左侧向知识库提问 (7列)，右侧展示 LMMWiki 实体与录音归档网络 (5列) -->
+        <div class="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-12 gap-3.5 overflow-hidden">
+          
+          <!-- 左侧：知识库问答对话区 (占 7 列) -->
+          <div class="md:col-span-7 flex flex-col h-full min-h-0 overflow-hidden space-y-2.5">
+            <div class="tp-card flex-1 min-h-0 flex flex-col p-3 space-y-2.5 overflow-hidden bg-[var(--bg-card)]">
+              <div class="flex items-center justify-between pb-1.5 border-b border-[var(--border-subtle)]">
+                <div class="flex items-center space-x-1.5">
+                  <span class="w-5 h-5 rounded bg-[var(--accent-purple)] text-white flex items-center justify-center font-bold text-xs">
+                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                  </span>
+                  <span class="font-extrabold text-xs text-[var(--text-title)]">联合知识库问答</span>
+                </div>
+                
+                <div class="flex items-center space-x-2 text-[10px]">
+                  <label class="flex items-center space-x-1 cursor-pointer" title="Hermes 思考后自动将洞见写回指定 Obsidian 笔记末尾">
+                    <input type="checkbox" id="checkAutoWriteBack" checked class="rounded border-[var(--border-main)] text-[var(--accent-purple)]">
+                    <span class="text-[var(--accent-purple)] font-bold">反向写回笔记</span>
+                  </label>
+                  <span id="activeWriteBackTargetBadge" class="font-mono text-[9px] text-[var(--text-muted)] truncate max-w-[130px]" title="当前写回目标笔记">00-入口/LMMWiki-Index.md</span>
+                  <button id="btnClearObsidianChat" class="tp-btn text-[10px] py-0.5 px-1.5" title="清空问答历史">
+                    <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                  </button>
+                </div>
+              </div>
+
+              <!-- 快捷推荐提问词 -->
+              <div class="shrink-0 flex items-center space-x-1.5 overflow-x-auto pb-1 text-[11px]">
+                <span class="text-[var(--text-muted)] text-[10px] shrink-0 font-bold">推荐探查:</span>
+                <button type="button" class="tp-suggestion-chip tp-badge tp-badge-purple hover:opacity-80 cursor-pointer shrink-0">总结当前录音涉及的最新技术定夺</button>
+                <button type="button" class="tp-suggestion-chip tp-badge hover:opacity-80 cursor-pointer shrink-0">知识库中关于分层架构的沉淀有哪些？</button>
+                <button type="button" class="tp-suggestion-chip tp-badge hover:opacity-80 cursor-pointer shrink-0">查阅与 DJI Mic 相关的决策记录</button>
+              </div>
+
+              <!-- 问答对话列表 (内部独立滚动) -->
+              <div id="obsidianChatHistory" class="tp-scroll-pane flex-1 min-h-0 space-y-3 pr-1 text-xs">
+                <div class="p-3 rounded-lg bg-[var(--bg-subtle)] border border-[var(--border-subtle)] space-y-1.5">
+                  <div class="flex items-center space-x-1.5 font-bold text-[var(--accent-purple)]">
+                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/><path d="M6 6h10M6 10h10M6 14h6"/></svg>
+                    <span>Obsidian 知识库问答助手已就绪</span>
+                  </div>
+                  <p class="text-[var(--text-title)] leading-relaxed text-[11px]">
+                    已连接服务器上的 <strong>/home/ubuntu/obsidian-vault</strong> 知识库（包含 6,500+ 篇深度笔记）以及通过本助手同步的全部 <strong>01-Raw/录音材料/</strong>。
+                    你可以直接提问，模型将结合语音会话逐字稿、提炼的人设纪要以及知识库原文给出精准回答，并附带引用来源与双向链接。
+                  </p>
+                </div>
+              </div>
+
+              <!-- 底部输入框 -->
+              <form id="formObsidianAsk" class="shrink-0 flex items-center space-x-2 pt-1 border-t border-[var(--border-subtle)]">
+                <input id="inputObsidianQuery" type="text" placeholder="向知识库与录音材料提问..." class="flex-1 bg-[var(--bg-subtle)] border-1.5 border-[var(--border-main)] rounded-lg px-3 py-1.5 text-xs text-[var(--text-title)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-purple)]">
+                <button type="submit" id="btnSubmitObsidianAsk" class="tp-btn tp-btn-purple text-xs py-1.5 px-3 flex items-center space-x-1 shrink-0 font-bold">
+                  <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                  <span>提问</span>
+                </button>
+              </form>
+            </div>
+          </div>
+
+          <!-- 右侧：LMMWiki 归档与知识实体双向链接图谱 (占 5 列) -->
+          <div class="md:col-span-5 flex flex-col h-full min-h-0 overflow-hidden space-y-3">
+            <!-- 录音归档同步清单 (内部独立滚动) -->
+            <div class="tp-card flex-1 min-h-0 flex flex-col p-3 space-y-2 overflow-hidden bg-[var(--bg-card)]">
+              <div class="flex items-center justify-between pb-1.5 border-b border-[var(--border-subtle)] shrink-0">
+                <div class="flex items-center space-x-1.5">
+                  <span class="w-4 h-4 rounded bg-[var(--accent-blue)] text-white flex items-center justify-center font-bold text-[10px]">
+                    <svg class="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                  </span>
+                  <span class="font-black text-xs text-[var(--text-title)]">已沉淀至 Vault 的录音材料</span>
+                </div>
+                <span class="text-[10px] text-[var(--text-muted)]">01-Raw/录音材料/</span>
+              </div>
+
+              <div id="obsidianSyncedList" class="tp-scroll-pane space-y-2 pr-1 text-xs">
+                <div class="text-[var(--text-muted)] text-[11px] p-2">尚未同步录音材料，可在纪要页面点击“同步至 Obsidian”</div>
+              </div>
+            </div>
+
+            <!-- LMMWiki 知识实体网络 (内部独立滚动) -->
+            <div class="tp-card flex-1 min-h-0 flex flex-col p-3 space-y-2 overflow-hidden bg-[var(--bg-card)]">
+              <div class="flex items-center justify-between pb-1.5 border-b border-[var(--border-subtle)] shrink-0">
+                <div class="flex items-center space-x-1.5">
+                  <span class="w-4 h-4 rounded bg-[var(--accent-yellow)] text-slate-900 flex items-center justify-center font-bold text-[10px]">
+                    <svg class="w-2.5 h-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+                  </span>
+                  <span class="font-black text-xs text-[var(--text-title)]">LMMWiki 活跃实体与双向链接</span>
+                </div>
+                <span class="text-[10px] text-[var(--text-muted)]">03-Wiki/LMMWiki/</span>
+              </div>
+
+              <div id="obsidianEntitiesList" class="tp-scroll-pane space-y-1.5 pr-1 text-xs">
+                <div class="text-[var(--text-muted)] text-[11px] p-2">同步录音后将自动提取核心技术实体，并生成双向反向链接</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================================================= -->
+      <!-- TAB 4: 长期 AI 记忆第二大脑 (3/4 记忆卡片 : 1/4 Agent 对话，带可拖动分界线)    -->
+      <!-- ========================================================================= -->
+      <div id="tab-memory" class="tab-pane hidden flex-1 min-h-0 flex flex-col overflow-hidden space-y-2">
+        <!-- 顶部控制条 (包含标题、统计与重置比例) -->
+        <div class="shrink-0 tp-card p-2 sm:p-2.5 flex flex-wrap items-center justify-between gap-2 bg-[var(--bg-card)] border-1.5 border-[var(--border-main)]">
+          <div class="flex items-center space-x-2">
+            <div class="w-7 h-7 rounded-lg bg-[var(--accent-yellow)]/20 border-1.5 border-[var(--border-main)] text-[var(--accent-yellow)] flex items-center justify-center font-bold shadow-[1px_1px_0px_var(--border-main)] shrink-0">
+              <svg class="w-3.5 h-3.5 text-slate-900" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 3.5C8 3.5 6.5 4.5 6 6C4.5 6.5 3.5 8 3.5 10C3.5 11.5 4.5 13 5.5 13.5C4.5 14.5 4.5 16 5.5 17.5C6.5 19 8.5 19.5 10 19C10.5 20 11.5 20.5 12.5 20.5"/><path d="M14.5 3.5C16 3.5 17.5 4.5 18 6C19.5 6.5 20.5 8 20.5 10C20.5 11.5 19.5 13 18.5 13.5C19.5 14.5 19.5 16 18.5 17.5C17.5 19 15.5 19.5 14 19C13.5 20 12.5 20.5 11.5 20.5"/></svg>
+            </div>
+            <div>
+              <div class="flex items-center space-x-1.5">
+                <h3 class="font-black text-xs text-[var(--text-title)]">长期记忆大脑 & 认知微调副驾 (Second Brain)</h3>
+                <span id="headerMemoryCountBadge" class="tp-badge tp-badge-yellow text-[9px] font-mono">0 条记忆</span>
+                <span class="tp-badge tp-badge-green text-[9px] font-mono hidden sm:inline">全时语义唤醒</span>
+              </div>
+              <p class="text-[9px] text-[var(--text-muted)] flex items-center space-x-1.5 mt-0.5">
+                <span>基于跨会话记忆提炼、个性偏好画像与工程事实，全天候驱动 AI 副驾深度推理</span>
+              </p>
+            </div>
+          </div>
+
+          <div class="flex items-center space-x-1.5 text-xs">
+            <!-- 比例重置与指示徽标 -->
+            <button id="btnResetMemoryRatio" class="tp-badge tp-badge-yellow text-[9px] font-mono cursor-pointer hover:opacity-80" title="双击或点击重置为 75% : 25% 左右比例">
+              <span id="memoryRatioBadge">比例: 75% : 25% (可拖动)</span>
+            </button>
+            <button id="btnShowAddMemoryModal" class="tp-btn tp-btn-primary text-xs py-1 px-2.5 flex items-center space-x-1 font-bold">
+              <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="4.5" x2="12" y2="19.5"/><line x1="4.5" y1="12" x2="19.5" y2="12"/></svg>
+              <span>存入记忆</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 移动端子切换胶囊 (仅在移动端可见) -->
+        <div class="md:hidden shrink-0 flex items-center justify-between gap-1 px-1">
+          <button id="btnMobileMemoryCards" class="tp-subseg-btn active flex-1 text-center" data-subseg-mem="subseg-mem-cards">记忆库展台 (3/4)</button>
+          <button id="btnMobileMemoryAgent" class="tp-subseg-btn flex-1 text-center" data-subseg-mem="subseg-mem-agent">第二大脑 Agent (1/4)</button>
+        </div>
+
+        <!-- 主左右分栏容器 (可自由长按/鼠标拖动中间条调整比例) -->
+        <div id="memoryWorkspace" class="flex-1 min-h-0 flex flex-col md:flex-row overflow-hidden relative">
+
+          <!-- ================= 左侧 3/4 板块: 记忆卡片库 (偏好画像、项目方案等) ================= -->
+          <section id="memoryLeftPanel" class="subseg-mem-pane subseg-active flex flex-col h-full min-h-0 overflow-hidden bg-[var(--bg-card)] border-1.5 border-[var(--border-main)] rounded-lg shadow-[2px_2px_0px_var(--border-main)]" style="width: 75%;">
+            <!-- 顶部筛选与搜索栏 -->
+            <div class="shrink-0 p-2 sm:p-2.5 border-b border-[var(--border-subtle)] bg-[var(--bg-subtle)] flex flex-wrap items-center justify-between gap-1.5">
+              <div class="flex items-center space-x-1 overflow-x-auto text-xs">
+                <button class="tp-btn text-[11px] py-1 px-2 active tp-filter-btn" data-category="all">全部</button>
+                <button class="tp-btn text-[11px] py-1 px-2 tp-filter-btn" data-category="preference">偏好画像</button>
+                <button class="tp-btn text-[11px] py-1 px-2 tp-filter-btn" data-category="project">项目方案</button>
+                <button class="tp-btn text-[11px] py-1 px-2 tp-filter-btn" data-category="decision">重大决策</button>
+                <button class="tp-btn text-[11px] py-1 px-2 tp-filter-btn" data-category="person">人物承诺</button>
+                <button class="tp-btn text-[11px] py-1 px-2 tp-filter-btn" data-category="fact">客观经验</button>
+              </div>
+              <div class="flex items-center space-x-1.5">
+                <select id="selectMemorySort" class="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded px-1.5 py-0.5 text-[10px] text-[var(--text-title)] cursor-pointer focus:outline-none focus:border-[var(--accent-purple)]">
+                  <option value="importance" selected>重要度优先</option>
+                  <option value="newest">最新录入</option>
+                  <option value="oldest">最早录入</option>
+                </select>
+                <input id="inputSearchMemories" type="text" placeholder="实时过滤记忆..." class="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded px-2 py-0.5 text-[10px] text-[var(--text-title)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-yellow)] w-32 sm:w-40">
+              </div>
+            </div>
+
+            <!-- 记忆卡片列表独立内滚区 -->
+            <div id="memoryScrollPane" class="flex-1 min-h-0 tp-scroll-pane p-2.5 sm:p-3">
+              <div id="memoryGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                <!-- 动态由 app.js 渲染 -->
+              </div>
+            </div>
+          </section>
+
+          <!-- 中间可拖动分界条 (Splitter) -->
+          <div id="memorySplitter" class="hidden md:flex w-2.5 shrink-0 items-center justify-center cursor-col-resize hover:bg-[var(--accent-yellow)]/30 transition-colors z-20 group" title="左右拖动调整宽度比例，双击恢复默认 75% : 25%">
+            <div class="w-1 h-8 rounded-full bg-[var(--border-main)]/40 group-hover:bg-[var(--accent-yellow)] group-hover:h-12 transition-all"></div>
+          </div>
+
+          <!-- ================= 右侧 1/4 板块: 问问你的第二大脑 (Agent 对话板块) ================= -->
+          <section id="memoryRightPanel" class="subseg-mem-pane hidden md:flex flex-col h-full min-h-0 overflow-hidden bg-[var(--bg-card)] border-1.5 border-[var(--border-main)] rounded-lg shadow-[2px_2px_0px_var(--border-main)]" style="width: 25%;">
+            <!-- 头部: Orb头像 + 标题 + 工具态徽标 + 操作 -->
+            <div class="shrink-0 p-2 sm:p-2.5 border-b border-[var(--border-subtle)] bg-[var(--bg-subtle)] flex items-center justify-between">
+              <div class="flex items-center space-x-2 min-w-0">
+                <div class="w-5 h-5 rounded-full bg-[var(--accent-purple)] flex items-center justify-center shrink-0 shadow-sm relative">
+                  <div class="w-2 h-2 rounded-full bg-white animate-pulse"></div>
+                </div>
+                <div class="min-w-0">
+                  <span class="font-extrabold text-xs text-[var(--text-title)] truncate block">第二大脑 Agent</span>
+                </div>
+              </div>
+              <div class="flex items-center space-x-1 shrink-0">
+                <span id="agentRefBadge" class="tp-badge tp-badge-purple text-[9px] font-mono">0 引用</span>
+                <button id="btnNewBrainChat" class="tp-btn text-[10px] py-0.5 px-1.5" title="开启新对话">
+                  <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                </button>
+                <button id="btnClearBrainChat" class="tp-btn text-[10px] py-0.5 px-1.5" title="清空对话">
+                  <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- 对话消息列表 (内部独立滚动) -->
+            <div id="brainChatHistory" class="flex-1 min-h-0 tp-scroll-pane p-2.5 sm:p-3 space-y-3 text-xs">
+              <!-- 初始引导消息 -->
+              <div class="p-2.5 rounded-lg bg-[var(--bg-subtle)] border border-[var(--border-subtle)] space-y-1.5 text-[11px]">
+                <div class="flex items-center space-x-1 font-bold text-[var(--accent-purple)]">
+                  <svg class="w-3.5 h-3.5 text-[var(--accent-purple)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                  <span class="text-[var(--text-title)] font-extrabold">第二大脑认知副驾已就绪</span>
+                </div>
+                <p class="text-[var(--text-body)] leading-relaxed">
+                  我是你的第二大脑专属 Agent。我随时调阅左侧沉淀的偏好画像、架构定调、人物承诺与历史决策。针对你的提问，我将进行关联推理并给出事实支撑。
+                </p>
+                <div class="pt-1 flex flex-wrap gap-1">
+                  <button type="button" class="tp-memory-prompt-chip text-[9px] px-2 py-0.5 rounded bg-[var(--bg-card)] border border-[var(--border-subtle)] hover:border-[var(--accent-purple)] text-[var(--text-title)] cursor-pointer">关于音频方案的定夺</button>
+                  <button type="button" class="tp-memory-prompt-chip text-[9px] px-2 py-0.5 rounded bg-[var(--bg-card)] border border-[var(--border-subtle)] hover:border-[var(--accent-purple)] text-[var(--text-title)] cursor-pointer">我目前有哪些设计偏好？</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- 输入区与提问架子舞台 (严格按照 7 原则: 单一架子在输入区正上方) -->
+            <div class="shrink-0 p-2 sm:p-2.5 bg-[var(--bg-card)] border-t border-[var(--border-subtle)] flex flex-col space-y-2">
+              <!-- 单一舞台架子 (有提问卡片时弹出，回答后收成 QuietRow 归入消息流) -->
+              <div id="brainShelfContainer" class="hidden"></div>
+
+              <!-- 输入框集成组件 (ChatComposer 28px 圆角) -->
+              <form id="formBrainAsk" class="tp-chat-composer flex items-end gap-1.5 bg-[var(--bg-subtle)] border-1.5 border-[var(--border-main)] rounded-[20px] p-1.5 pl-3 transition-all focus-within:border-[var(--accent-purple)] focus-within:ring-2 focus-within:ring-[var(--accent-purple-ring)]">
+                <textarea id="inputBrainQuestion" rows="1" placeholder="向第二大脑提问 (Enter 发送)..." class="flex-1 bg-transparent border-0 text-xs text-[var(--text-title)] placeholder:text-[var(--text-muted)] focus:outline-none resize-none max-h-24 py-1 leading-normal"></textarea>
+                <div class="flex items-center space-x-1 shrink-0 pb-0.5">
+                  <span class="tp-badge font-mono text-[9px] text-[var(--text-muted)] hidden sm:inline-block">deepseek-v3</span>
+                  <button type="submit" id="btnAskBrain" class="w-7 h-7 rounded-full bg-[var(--accent-purple)] text-white flex items-center justify-center hover:opacity-90 transition-all shrink-0 shadow-sm" title="发送">
+                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                  </button>
+                </div>
+              </form>
+            </div>
+          </section>
+
+        </div>
+      </div>
+
+      <!-- ========================================================================= -->
+      <!-- TAB 5: 历史会话档案 (Sessions Archive)                                     -->
+      <!-- ========================================================================= -->
+      <div id="tab-archive" class="tab-pane hidden flex-1 min-h-0 flex flex-col overflow-hidden space-y-2.5">
+        <!-- 顶部卡片栏 (与其他标签页规范统一) -->
+        <div class="shrink-0 tp-card p-2.5 sm:p-3 flex items-center justify-between bg-[var(--bg-card)] border-1.5 border-[var(--border-main)]">
+          <div class="flex items-center space-x-2">
+            <div class="w-7 h-7 rounded-lg bg-[var(--accent-blue)]/20 border-1.5 border-[var(--border-main)] text-[var(--accent-blue)] flex items-center justify-center font-bold shadow-[1px_1px_0px_var(--border-main)] shrink-0">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2.5" y="4" width="19" height="5" rx="1.5"/><path d="M4.5 9V19C4.5 20 5.5 21 6.5 21H17.5C18.5 21 19.5 20 19.5 19V9"/></svg>
+            </div>
+            <div>
+              <div class="flex items-center space-x-1.5">
+                <h3 class="font-black text-xs text-[var(--text-title)]">录音与纪要历史档案 (Sessions Archive)</h3>
+                <span id="archiveCountBadge" class="tp-badge tp-badge-blue text-[9px] font-mono">0 次会话</span>
+              </div>
+              <p class="text-[9px] text-[var(--text-muted)] mt-0.5">跨会话持久化保存在本地沙盒，支持快速调阅逐字稿与人设纪要</p>
+            </div>
+          </div>
+          <button id="btnRefreshSessions" class="tp-btn text-xs py-1.5 px-2.5 flex items-center space-x-1 font-bold">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 4v6h-6M3 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L21 10M1 14l2.64 2.64A9 9 0 0 0 20.49 15"/></svg>
+            <span>刷新档案</span>
+          </button>
+        </div>
+
+        <!-- 会话卡片列表 (内部独立滚动窗口) -->
+        <div class="flex-1 min-h-0 tp-scroll-pane">
+          <div id="sessionsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pr-1 pb-2">
+            <!-- 动态渲染 -->
+          </div>
+        </div>
+      </div>
+
+    </main>
+
+    <!-- 移动端底部导航栏 (固定 50px，仅在移动端展示，严格遵守 100dvh App-Shell) -->
+    <nav class="md:hidden h-[50px] shrink-0 border-t border-[var(--border-main)] bg-[var(--bg-canvas)]/95 backdrop-blur flex items-center justify-around px-2 z-30">
+      <button class="tp-mobile-tab-btn active" data-tab="tab-live">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2.5" width="6" height="11" rx="3"/><path d="M5.5 10.5C5.5 14.5 8.4 17.5 12 17.5C15.6 17.5 18.5 14.5 18.5 10.5"/></svg>
+        <span>实时</span>
+      </button>
+      <button class="tp-mobile-tab-btn" data-tab="tab-minutes">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2.5H6.5V21.5H17.5V7.5L14.5 2.5Z"/></svg>
+        <span>纪要</span>
+      </button>
+      <button class="tp-mobile-tab-btn" data-tab="tab-obsidian">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/><path d="M6 6h10M6 10h10M6 14h6"/></svg>
+        <span>Wiki</span>
+      </button>
+      <button class="tp-mobile-tab-btn" data-tab="tab-memory">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 3.5C8 3.5 6.5 4.5 6 6C4.5 6.5 3.5 8 3.5 10C3.5 11.5 4.5 13 5.5 13.5C4.5 14.5 4.5 16 5.5 17.5C6.5 19 8.5 19.5 10 19C10.5 20 11.5 20.5 12.5 20.5"/></svg>
+        <span>大脑</span>
+      </button>
+      <button class="tp-mobile-tab-btn" data-tab="tab-archive">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="4" width="19" height="5" rx="1.5"/><path d="M4.5 9V19C4.5 20 5.5 21 6.5 21H17.5C18.5 21 19.5 20 19.5 19V9"/></svg>
+        <span>档案</span>
+      </button>
+    </nav>
+
+  </div>
+
+  <!-- 手动存入记忆模态框 -->
+  <div id="addMemoryModal" class="hidden fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="tp-card p-5 max-w-md w-full space-y-3 bg-[var(--bg-card)] border-2 border-[var(--border-main)] shadow-[4px_4px_0px_var(--border-main)]">
+      <div class="flex items-center justify-between border-b border-[var(--border-subtle)] pb-2">
+        <h3 class="font-black text-xs sm:text-sm text-[var(--text-title)]">存入一条新的长期记忆</h3>
+        <button id="btnCloseAddMemory" class="text-xs text-[var(--text-muted)] hover:text-[var(--text-title)]">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+
+      <div class="space-y-2.5 text-xs">
+        <div>
+          <label class="block font-bold text-[var(--text-title)] mb-1 text-[11px]">分类:</label>
+          <select id="modalMemoryCategory" class="w-full p-1.5 rounded border border-[var(--border-main)] bg-[var(--bg-subtle)] text-[var(--text-title)] text-xs">
+            <option value="preference">偏好画像 (Preference)</option>
+            <option value="project">项目方案 (Project)</option>
+            <option value="decision">重大决策 (Decision)</option>
+            <option value="person">人物承诺 (Person / Action)</option>
+            <option value="fact">客观经验与事实 (Fact)</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block font-bold text-[var(--text-title)] mb-1 text-[11px]">记忆内容 (精炼描述):</label>
+          <textarea id="modalMemoryContent" rows="3" class="w-full p-2 rounded border border-[var(--border-main)] bg-[var(--bg-subtle)] text-[var(--text-title)] text-xs" placeholder="例如：团队统一采用 Git Flow，主分支必须经过 2 人 Code Review 才能合并。"></textarea>
+        </div>
+
+        <div>
+          <label class="block font-bold text-[var(--text-title)] mb-1 text-[11px]">标签 (逗号分隔):</label>
+          <input id="modalMemoryTags" type="text" class="w-full p-1.5 rounded border border-[var(--border-main)] bg-[var(--bg-subtle)] text-[var(--text-title)] text-xs" placeholder="规范, Git, 工程管理">
+        </div>
+      </div>
+
+      <div class="flex justify-end space-x-2 pt-2 border-t border-[var(--border-subtle)]">
+        <button id="btnCancelAddMemory" class="tp-btn text-xs py-1 px-2.5">取消</button>
+        <button id="btnConfirmAddMemory" class="tp-btn tp-btn-primary text-xs py-1 px-3">保存记忆</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- 角色人设选择器大弹窗 (Koboyo Persona Selector Modal)                         -->
+  <!-- ========================================================================= -->
+  <div id="personaModal" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5">
+    <div class="tp-card max-w-5xl w-full max-h-[90vh] flex flex-col bg-[var(--bg-card)] border-2 border-[var(--border-main)] shadow-[6px_6px_0px_var(--border-main)] overflow-hidden">
+      <!-- 弹窗头部 -->
+      <div class="shrink-0 p-4 sm:p-5 border-b-2 border-[var(--border-main)] bg-[var(--bg-subtle)] flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 rounded-2xl bg-[var(--accent-yellow)]/20 border-2 border-[var(--border-main)] text-[var(--accent-yellow)] flex items-center justify-center shadow-[2px_2px_0px_var(--border-main)] shrink-0">
+            <svg class="w-6 h-6" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 161 170"><path d="M74.1 10.8c-9.4 5-8.9 18.4.7 23.1l3.2 1.6v17.3l-18.2.4c-18.1.3-18.4.3-23.6 3.2A24 24 0 0 0 23 79v6h-3.7C14 85 9.5 88.1 8 92.5c-1.6 4.7-.9 29 .8 32.2 1.7 3 6.3 5.3 10.7 5.3H23v5.6c0 3.1.5 7.4 1.2 9.5a28 28 0 0 0 12.2 14.2c4 2.1 5 2.2 43.3 2.5 25 .2 40.7-.1 43.1-.8q14.6-3.8 15.6-21.5l.5-8.1c.1-.6 2.2-1.4 4.7-1.7q4.7-.4 7.3-3.1c2.6-2.6 2.6-2.7 2.6-19.1s0-16.5-2.6-19.1a11 11 0 0 0-7.3-3.1c-2.5-.3-4.6-.8-4.7-1.2l-.5-7a24 24 0 0 0-7.7-17.7c-6.1-5.1-8.9-5.8-28.7-6.4l-18.5-.5-.3-8.1-.3-8.2 3.6-2c7-4.2 9.5-12.5 5.5-18.9-3.7-6.1-11.4-8-17.9-4.5m10.3 4.3c3.2 1.5 5.2 6.3 4 9.7-.5 1.4-2.3 3.4-4 4.4-4 2.3-8.8.9-10.9-3.3-2.1-4-1.9-5.7 1.4-9 3.2-3.1 5.5-3.6 9.5-1.8m39.8 46.1c3.2 2 5.2 4.1 6.7 7.2 2.1 4.3 2.2 5.4 1.9 41.4-.3 35.9-.4 37.1-2.4 39.9a23 23 0 0 1-5.5 4.8c-3.2 1.9-5.5 2-41.1 2.3-40.4.3-43.5 0-48.9-4.5-6.6-5.6-6.9-7-6.8-44.3.1-33.9.3-36.8 3.9-41.6 2.3-3.1 7.4-6.5 11.1-7.4 1.9-.5 19.8-.8 39.9-.7l36.5.2zM22.5 107.5v17l-3.1.3c-5.5.5-6.4-1.4-6.6-15.1l.1-14.7c.3-3.3 2.9-5.2 6.6-4.8l3 .3zM147 92c1.8 1.8 2 3.3 2 15.5s-.2 13.7-2 15.5a8 8 0 0 1-4.9 2h-2.9l-.4-16.3c-.2-8.9-.2-16.8 0-17.5.6-1.9 6-1.4 8.2.8"/><path d="M49.9 89.3a12 12 0 0 0-4.9 13.3c3.4 10.3 17.9 11.5 22.5 1.8q3.8-8-3-14.2c-4.3-4-9.5-4.3-14.6-.9m11.6 5.2q4.6 4.6.3 9.2a6.9 6.9 0 0 1-12-4.6c-.2-6.5 7-9.3 11.7-4.6m38.5-6.8a15 15 0 0 0-7.6 8.9c-1.5 7.9 4.2 14.4 12.6 14.4 3.4 0 4.8-.6 7.5-3.3 4.2-4.2 5.2-7.7 3.3-12.5-2.3-6.1-9.8-9.7-15.8-7.5m7.5 4.9c.8.4 2.3 2 3.1 3.6 1.2 2.4 1.3 3.3.2 5.6-2.5 5.1-10.4 5.6-12.6.7-1.7-3.8-1.5-5.3 1.3-8q3.5-3.7 8-1.9m-53.1 40.9c-1.3 3.2.6 3.5 26 3.5s28.2-.4 26.9-3.6c-.8-2.1-52.1-2.1-52.9.1"/></svg>
+          </div>
+          <div>
+            <div class="flex items-center space-x-2">
+              <h2 class="text-base sm:text-lg font-black text-[var(--text-title)]">选择 AI 总结人设视角 · Koboyo 认知思维护航团</h2>
+              <span class="tp-badge tp-badge-yellow text-[10px] font-mono">10 位手绘小人</span>
+            </div>
+            <p class="text-xs text-[var(--text-muted)] mt-0.5">每位角色拥有完全独立的心智模型与审视维度，针对同一场录音材料将输出风格迥异的专属深度产物。</p>
+          </div>
+        </div>
+        <button id="btnClosePersonaModal" class="p-1.5 rounded-lg border-1.5 border-[var(--border-main)] hover:bg-[var(--bg-canvas)] text-[var(--text-title)] transition-all">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+
+      <!-- 10 位角色卡片网格 (内部独立滚动) -->
+      <div class="flex-1 min-h-0 tp-scroll-pane p-4 sm:p-5">
+        <div id="personaModalGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
+          <!-- 动态由 app.js 填充 -->
+        </div>
+      </div>
+
+      <!-- 弹窗底部操作栏 -->
+      <div class="shrink-0 p-3 sm:p-4 border-t-2 border-[var(--border-main)] bg-[var(--bg-subtle)] flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center space-x-2 text-xs">
+          <span class="text-[var(--text-muted)]">当前选定:</span>
+          <span id="personaModalSelectedName" class="font-black text-sm text-[var(--text-title)]">红队侦探</span>
+          <span id="personaModalSelectedBadge" class="tp-badge tp-badge-rose text-[10px]">反方拷问官</span>
+          <span id="personaModalSelectedOutput" class="text-[11px] text-[var(--text-muted)] hidden sm:inline truncate max-w-[280px]">专属产物：红队极客审查与盲区漏洞警示</span>
+        </div>
+
+        <div class="flex items-center space-x-2">
+          <button id="btnCancelPersonaModal" class="tp-btn text-xs py-2 px-3">
+            <span>取消</span>
+          </button>
+          <button id="btnConfirmPersonaOnly" class="tp-btn text-xs py-2 px-3">
+            <span>仅应用人设</span>
+          </button>
+          <button id="btnConfirmPersonaAndGenerate" class="tp-btn tp-btn-primary text-xs py-2 px-4 flex items-center space-x-1 font-bold">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+            <span>确定并以此人设生成纪要</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 引入 TP UI 动效与交互引擎及业务逻辑脚本 -->
+  <script src="tp-ui.js?v=3.5.0" defer></script>
+  <script src="audio-recorder.js?v=3.6.0_instant_pipeline"></script>
+  <script src="app.js?v=3.6.0_silence_tune"></script>
+</body>
+</html>

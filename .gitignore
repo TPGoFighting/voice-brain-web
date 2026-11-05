@@ -1,0 +1,19 @@
+# 依赖
+node_modules/
+
+# 运行时密钥与私有数据（绝不入库）
+.env
+.env.*
+!.env.example
+data/
+data/*.json
+
+# Android 构建产物（见 voice-brain-android 仓库）
+*.apk
+public/download/
+
+# 日志与系统文件
+*.log
+npm-debug.log*
+.DS_Store
+.pm2/

@@ -1,0 +1,25 @@
+/* ==========================================================================
+   TP UI · tp-bridge.css v2.4.0 —— 变量名适配器（库适配站，不是站迁就库）
+   老站不改自身变量名，在 tp-ui.css 之后引入本文件并在 <html> 上声明
+   data-bridge="room" | "memphis"，库的 Semantic 令牌即指向该站既有色板。
+   新接入优先用 tp-ui.css 内置的 data-palette 预设；本文件服务于已用
+   自有变量名（如 --ink/--paper）写就的老站，让组件直接承接其原生色板。
+   ========================================================================== */
+
+/* 房型组（phone / pm 共用令牌：#FF6B35 / #FAF8F2 / #1C1C1E） */
+[data-bridge="room"]{
+  --tp-accent:#FF6B35;
+  --tp-accent-soft:#FFF0E9;
+  --tp-bg-canvas:#FAF8F2;
+  --tp-text-main:#1C1C1E;
+  --tp-border-hard:#1C1C1E;
+  --tp-shadow-color:#1C1C1E;
+}
+
+/* Memphis 组（notes 色板：#FF6B35 主 + 孟菲斯撞色点缀） */
+[data-bridge="memphis"]{
+  --tp-accent:#FF6B35;
+  --tp-accent-soft:#FFF0E9;
+  --tp-chart-3:#FFD02E;
+  --tp-chart-4:#2EC4B6;
+}
