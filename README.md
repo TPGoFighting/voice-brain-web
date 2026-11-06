@@ -175,3 +175,18 @@ npm start                 # Linux 默认 8120，其他平台默认 3000
 ## 归档说明
 
 本仓库是 2026-11-05 从线上 `/var/www/voice-bean` 整理的**脱敏快照**：仅剔除私密文件并补上仓库文档，线上服务与服务器原有代码未做任何改动。姊妹仓库：[voice-brain-android](https://github.com/TPGoFighting/voice-brain-android)。
+
+## 2026-11-06 升级记录（三项修复 + 三期产品升级，前端 v3.9.0）
+
+**准确性修复（Fix 1–3）**
+- ASR 配置与热词：language_hints 扩为 zh/en、断句阈值 800→1200ms、45 词热词表（voicebean 前缀）接入 paraformer-realtime-v2；DashScope / DeepSeek 密钥轮换。
+- 清洗降级为「只补标点」：白名单规则 + LCS 相似度护栏（<0.85 拒绝）、短句跳过；`text/rawText` 恒存 ASR 原文，清洗稿只进 `displayText`，前端默认展示原文。
+- 问答强 grounding：新增逐字稿原文片段检索注入上下文，关键结论必须逐字引用，无依据明确答「没提到」；温度 0.3；假 steps/sources 改为真实命中片段。
+
+**一期 · 体验**：问答 SSE 真流式（`POST /api/memory/query/stream`，首字约 2s）+ 来源 chip 点击定位原文句；录音波形改真实频谱（AnalyserNode 旁路）；重采样改区间均值抗混叠；骨架屏与 toast 反馈。
+
+**二期 · 性能与结构**：Tailwind 运行时（407KB）换静态构建（`build/` + `tailwind-static.css` 26.6KB，含 color-mix compat）；`public/app.js` 源码拆为 `src/01–11` 模块 + `build_app.sh` 拼接（产物逐字节一致）；PWA Service Worker（`public/sw.js`）：外壳离线缓存、只读接口离线回落、写接口 IndexedDB 队列联网重放。
+
+**三期 · 智能**：全文检索 `GET /api/search`（逐字稿+记忆，归档页 UI）；纪要四模板（通用/会议/课程/访谈，`MINUTES_TEMPLATES` 注入 prompt，结果回写 template 字段）；说话人分离（离线精转写 paraformer-v2 + diarization：`/api/asr/diarize/upload|start|status`，前端单调对齐回填 speaker + 彩色标记）。
+
+已通过端到端验证：双人中文合成会议全旅程（WS 录音→纪要→问答→检索→分离）与原有接口回归。

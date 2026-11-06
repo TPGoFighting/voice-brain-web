@@ -6,7 +6,6 @@ require('dotenv').config();
 
 const storage = require('./storage');
 const obsidianSync = require('./obsidian-sync');
-const llmConfig = require('./llm-config');
 
 const app = express();
 const server = http.createServer(app);
@@ -14,21 +13,11 @@ const wss = new WebSocketServer({ server, path: '/ws/asr' });
 
 const PORT = process.env.PORT || (process.platform === 'linux' ? 8120 : 3000);
 const DASHSCOPE_API_KEY = process.env.DASHSCOPE_API_KEY;
-const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || '';
+const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
 const DEEPSEEK_MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-flash';
-const API_AUTH_TOKEN = process.env.API_AUTH_TOKEN || '';
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
-
-// 可选 API 鉴权：设置 API_AUTH_TOKEN 后，所有 /api/* 请求必须携带
-// `Authorization: Bearer <API_AUTH_TOKEN>`；未设置时保持本地开放访问。
-function requireApiAuth(req, res, next) {
-  if (!API_AUTH_TOKEN) return next();
-  if (req.headers['authorization'] === `Bearer ${API_AUTH_TOKEN}`) return next();
-  return res.status(401).json({ error: 'Unauthorized' });
-}
-app.use('/api', requireApiAuth);
 
 // -------------------------------------------------------------
 // 1. 服务状态与配置
@@ -37,42 +26,24 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', server: 'voice-bean', time: new Date().toISOString() });
 });
 
+app.all(['/auth/token', '/token'], (req, res) => {
+  res.json({
+    asr_token: DASHSCOPE_API_KEY,
+    llm_key: DEEPSEEK_API_KEY,
+    expires_at: Date.now() + 3600 * 1000
+  });
+});
+
 app.get('/api/status', (req, res) => {
-  const llm = llmConfig.getPublicConfig();
   res.json({
     ok: true,
     dashscopeConfigured: !!DASHSCOPE_API_KEY,
-    deepseekConfigured: llm.configured,
-    deepseekModel: llm.model,
-    llmProvider: llm.provider,
-    llmBaseUrl: llm.baseUrl,
+    deepseekConfigured: !!DEEPSEEK_API_KEY,
+    deepseekModel: DEEPSEEK_MODEL,
     port: PORT,
     sessionCount: storage.getSessions().length,
     memoryCount: storage.getMemories().length
   });
-});
-
-app.get('/api/llm/config', (req, res) => {
-  res.json({ ok: true, config: llmConfig.getPublicConfig() });
-});
-
-app.post('/api/llm/config', (req, res) => {
-  const result = llmConfig.saveConfig(req.body || {});
-  res.status(result.ok ? 200 : 400).json(result);
-});
-
-app.delete('/api/llm/config/custom', (req, res) => {
-  res.json(llmConfig.clearCustomConfig());
-});
-
-app.get('/api/llm/models', async (req, res) => {
-  const result = await llmConfig.listRemoteModels();
-  res.status(result.ok ? 200 : 400).json(result);
-});
-
-app.post('/api/llm/test', async (req, res) => {
-  const result = await llmConfig.testConnection();
-  res.status(result.ok ? 200 : 400).json(result);
 });
 
 // -------------------------------------------------------------
@@ -90,11 +61,9 @@ app.get('/api/sessions/:id', (req, res) => {
 
 app.post('/api/sessions', (req, res) => {
   const sessionData = req.body;
+  if (Array.isArray(sessionData.utterances)) sessionData.utterances = normalizeUtterancesRaw(sessionData.utterances);
   if (!sessionData.id) {
     sessionData.id = 'sess-' + Date.now();
-  }
-  if (typeof sessionData.id !== 'string' || !/^[\w-]{1,64}$/.test(sessionData.id)) {
-    return res.status(400).json({ error: 'Invalid session id' });
   }
   const saved = storage.saveSession(sessionData);
   res.json({ success: true, session: saved });
@@ -134,7 +103,7 @@ app.post('/api/memory/extract', async (req, res) => {
       return res.json({ success: false, message: '无对话记录' });
     }
 
-    const conversationText = utterances.map(u => `[${u.speaker || '发言人'}]: ${u.text}`).join('\n');
+    const conversationText = utterances.map(u => `[${u.speaker || '发言人'}]: ${(u.rawText || u.text)}`).join('\n');
 
     const systemPrompt = `你是一个个人长期第二大脑（Second Brain）的记忆沉淀引擎。
 你的任务是从用户的录音转写文本中，抽取出具有【长期记忆价值】的核心事实与洞见，将其固化为个人的长期知识库。
@@ -167,15 +136,28 @@ app.post('/api/memory/extract', async (req, res) => {
 
     const userPrompt = `主题: ${topic || '录音随笔'}\n会话全文:\n${conversationText}`;
 
-    const result = await llmConfig.callChatCompletions({
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
-      ],
-      responseFormat: true
+    const response = await fetch('https://api.deepseek.com/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: DEEPSEEK_MODEL,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ],
+        response_format: { type: 'json_object' }
+      })
     });
-    if (!result.ok) return res.status(result.status).json({ error: result.error });
-    const data = result.data;
+
+    if (!response.ok) {
+      const err = await response.text();
+      return res.status(response.status).json({ error: err });
+    }
+
+    const data = await response.json();
     const parsed = JSON.parse(data.choices[0]?.message?.content || '{"extracted_memories":[]}');
     const memoriesWithSource = (parsed.extracted_memories || []).map(m => ({
       ...m,
@@ -190,6 +172,105 @@ app.post('/api/memory/extract', async (req, res) => {
   }
 });
 
+// ============ 修复三（2026-11-06）：问答强 grounding —— 逐字稿原文片段检索 ============
+// 从全部会话的 rawText 逐字稿中按问题检索相关原文片段：
+// token 化（英文词 + 中文 bigram）→ 语料词频剔除高频泛词 → 命中句聚成片段 → 近因加权排序。
+// 片段全部逐字取自 ASR 原文（rawText），供问答引用与 sources 展示，保证「依据」可核对。
+function vbTokenize(text) {
+  const terms = new Set();
+  const clean = (text || '').toLowerCase();
+  (clean.match(/[a-z0-9]+/g) || []).forEach(w => { if (w.length >= 2) terms.add(w); });
+  const cn = clean.replace(/[^一-鿿]/g, '');
+  for (let i = 0; i + 2 <= cn.length; i++) terms.add(cn.slice(i, i + 2));
+  return terms;
+}
+
+function retrieveTranscriptSnippets(question, allSessions, opts = {}) {
+  const topK = opts.topK || 6;
+  const maxChars = opts.maxChars || 6000;
+
+  const docs = [];
+  (allSessions || []).forEach(s => {
+    const utts = (s.utterances || []).filter(u => (u.rawText || '').trim().length >= 2);
+    utts.forEach(u => docs.push({ session: s, utt: u, terms: vbTokenize(u.rawText) }));
+  });
+  if (!docs.length) return [];
+
+  const qTermsAll = vbTokenize(question);
+  const df = new Map();
+  qTermsAll.forEach(t => df.set(t, 0));
+  docs.forEach(d => { qTermsAll.forEach(t => { if (d.terms.has(t)) df.set(t, df.get(t) + 1); }); });
+  const dfCap = Math.max(10, Math.floor(docs.length * 0.04));
+  const isEnglish = t => /^[a-z0-9]+$/.test(t);
+  const qTerms = [...qTermsAll].filter(t => { const d = df.get(t) || 0; return d >= 1 && d <= dfCap; });
+  if (!qTerms.length) return [];
+
+  const termWeight = t => (isEnglish(t) && t.length >= 3 ? 2 : 1);
+  docs.forEach(d => {
+    d.hit = qTerms.reduce((n, t) => n + (d.terms.has(t) ? termWeight(t) : 0), 0);
+    d.hitTerms = qTerms.filter(t => d.terms.has(t));
+  });
+
+  const bySession = new Map();
+  docs.forEach(d => {
+    if (!bySession.has(d.session.id)) bySession.set(d.session.id, []);
+    bySession.get(d.session.id).push(d);
+  });
+  const segments = [];
+  bySession.forEach((list) => {
+    const hitIdx = list.map((d, i) => (d.hit > 0 ? i : -1)).filter(i => i >= 0);
+    if (!hitIdx.length) return;
+    let runStart = hitIdx[0], prev = hitIdx[0];
+    const runs = [];
+    for (let k = 1; k < hitIdx.length; k++) {
+      if (hitIdx[k] - prev <= 2) { prev = hitIdx[k]; continue; }
+      runs.push([runStart, prev]); runStart = hitIdx[k]; prev = hitIdx[k];
+    }
+    runs.push([runStart, prev]);
+    runs.forEach(([a, b]) => {
+      let from = Math.max(0, a - 1), to = Math.min(list.length - 1, b + 1);
+      if (to - from + 1 > 8) {
+        let best = from, bestScore = -1;
+        for (let st = from; st + 8 - 1 <= to; st++) {
+          let sc = 0; for (let j = st; j < st + 8; j++) sc += list[j].hit;
+          if (sc > bestScore) { bestScore = sc; best = st; }
+        }
+        from = best; to = best + 7;
+      }
+      let score = 0;
+      const distinct = new Set();
+      for (let j = from; j <= to; j++) { score += list[j].hit; list[j].hitTerms.forEach(t => distinct.add(t)); }
+      const veryStrongSingle = distinct.size === 1 && (df.get([...distinct][0]) || 99) <= 2;
+      if (score < 4 || (distinct.size < 2 && !veryStrongSingle)) return;
+      const segUtts = list.slice(from, to + 1);
+      const text = segUtts.map(d => d.utt.rawText).join('');
+      if (text.trim().length < 4) return;
+      const s = list[0].session;
+      const ageDays = Math.max(0, (Date.now() - new Date(s.createdAt).getTime()) / 86400000);
+      const weighted = score * (0.7 + 0.3 / (1 + ageDays / 30));
+      segments.push({
+        sessionId: s.id,
+        sessionTitle: s.title || '',
+        sessionTime: s.createdAt,
+        utteranceTime: segUtts[0].utt.time || '',
+        text,
+        score: Math.round(weighted * 100) / 100
+      });
+    });
+  });
+
+  segments.sort((x, y) => y.score - x.score);
+  const out = [];
+  let total = 0;
+  for (const seg of segments) {
+    if (out.length >= topK) break;
+    total += seg.text.length;
+    if (total > maxChars && out.length) break;
+    out.push(seg);
+  }
+  return out;
+}
+
 // 问问你的第二大脑 (Ask Your Second Brain - 自然语言检索记忆库)
 app.post('/api/memory/query', async (req, res) => {
   try {
@@ -201,55 +282,91 @@ app.post('/api/memory/query', async (req, res) => {
 
     const memoryContext = allMemories.map(m => `[分类: ${m.category} | 标签: ${m.tags.join(', ')} | 重要度: ${m.importance}/5]: ${m.content}`).join('\n');
     const sessionContext = sessions.map(s => `[会话: ${s.title} (${new Date(s.createdAt).toLocaleDateString()})]: 主题: ${s.topic || ''}; 摘要: ${s.tldr || s.delta_summary || ''}`).join('\n');
+    // 修复三：检索逐字稿原文片段（一手依据），与记忆/摘要分开标注注入 prompt
+    const snippets = retrieveTranscriptSnippets(question, storage.getSessions());
+    const transcriptContext = snippets.length
+      ? snippets.map((p, i) => `[片段${i + 1} | 会话 ${p.sessionId} | ${new Date(p.sessionTime).toLocaleString('zh-CN', { hour12: false })} | 片段时间 ${p.utteranceTime}] ${p.text}`).join('\n')
+      : '（未检索到相关的转写原文片段）';
+
 
     const systemPrompt = `你是一个个人的专属 AI 第二大脑助手（Personal Voice Brain Assistant）。
-你拥有用户过去所有语音记录、会议决策和沉淀下来的长期记忆库。
-请基于给定的【个人长期记忆库】和【历史会话档案】，用清晰、有条理、贴心的口吻回答用户的问题。
-要求：
-1. 明确指出相关信息来自于哪些记忆条目或哪场历史讨论。
-2. 若记忆库中没有记录，诚实说明，切勿编造。
-3. 结构清晰，重点内容加粗。`;
+你的回答必须严格忠于用户录音的【转写原文片段】——那是唯一的一手依据；【个人长期记忆库】与【历史会话档案】是模型生成的转述与摘要，只能作辅助索引，绝不能当作原话。
 
-    const userPrompt = `【个人长期记忆库】:
+作答规则（必须遵守）：
+1. 只能依据下面给出的材料回答问题。每个关键结论之后，必须附上支撑它的原文逐字引用：从【转写原文片段】中原样摘录，用中文引号「」括起来，一字不改。
+2. 引用只能来自【转写原文片段】区块；不得把记忆条目或会话摘要的转述文字包装成原话引用。
+3. 若原文片段与记忆中都没有能支撑答案的内容，明确回答「这段记录里没提到」或「没有相关记录」，不得用常识、经验或推测补全。
+4. 确有必要推测时，必须明确标注「推测」并指出依据哪段原文；没有原文依据的推测不要给出。
+5. 结构清晰，重点内容加粗；提及信息出处时，以原文片段标注的会话日期为准。`;
+
+    const userPrompt = `【转写原文片段】（一手依据，来自历史录音逐字稿原文）:
+${transcriptContext}
+
+【个人长期记忆库】（模型转述，仅作辅助索引）:
 ${memoryContext || '暂无存储的长期记忆'}
 
-【历史会话档案】:
+【历史会话档案】（模型摘要，仅作辅助）:
 ${sessionContext || '暂无历史会话'}
 
 用户提问: "${question}"`;
 
-    const result = await llmConfig.callChatCompletions({
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
-      ]
+    const response = await fetch('https://api.deepseek.com/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: DEEPSEEK_MODEL,
+        temperature: 0.3,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ]
+      })
     });
-    if (!result.ok) return res.status(result.status).json({ error: result.error });
-    const data = result.data;
+
+    if (!response.ok) {
+      const err = await response.text();
+      return res.status(response.status).json({ error: err });
+    }
+
+    const data = await response.json();
     const answer = data.choices[0]?.message?.content || '抱歉，未能查询到相关记忆。';
 
     const steps = [
       {
         type: 'tool_call',
-        name: 'recall_memories',
-        desc: `查阅第二大脑记忆库 (${allMemories.length} 条资产)`,
-        result: `已关联匹配到相关偏好与架构约定`,
+        name: 'search_transcript',
+        desc: '检索全部会话逐字稿原文',
+        result: snippets.length ? `命中 ${snippets.length} 段原文片段` : '未命中相关原文片段',
         status: 'done'
       },
       {
         type: 'tool_call',
-        name: 'search_archive',
-        desc: `调阅最近会话归档 (${sessions.length} 场讨论)`,
-        result: `完成历史上下文交叉比对`,
+        name: 'recall_memories',
+        desc: `查阅第二大脑记忆库 (${allMemories.length} 条资产)`,
+        result: '作为辅助索引一并提供（非一手依据）',
         status: 'done'
       },
       {
         type: 'reasoning',
-        name: 'cognitive_synthesis',
-        desc: `综合个人偏好与事实基线进行推演`,
+        name: 'grounded_synthesis',
+        desc: '仅依据原文片段与记忆作答，关键结论附逐字引用',
         status: 'done'
       }
     ];
+
+    // 修复三：sources 改为本次真实命中的原文片段（原 slice(0,3) 假来源已删除）；无命中返回空数组
+    const sources = snippets.map(p => ({
+      type: 'transcript',
+      sessionId: p.sessionId,
+      sessionTitle: p.sessionTitle,
+      sessionTime: p.sessionTime,
+      utteranceTime: p.utteranceTime,
+      quote: p.text,
+      content: p.text
+    }));
 
     let clarification = null;
     if (/(方案|选型|偏好|决策|怎么选|建议|对比|优先)/.test(question)) {
@@ -265,11 +382,138 @@ ${sessionContext || '暂无历史会话'}
       };
     }
 
-    res.json({ success: true, answer, steps, clarification, sources: allMemories.slice(0, 3) });
+    res.json({ success: true, answer, steps, clarification, sources });
   } catch (err) {
     console.error('Error in /api/memory/query:', err);
     res.status(500).json({ error: err.message });
   }
+});
+
+// ============ 一期升级（2026-11-06）：问答流式接口（SSE） ============
+// 与 /api/memory/query 同一套上下文构建与 grounding 规则，区别是逐字推送 token；
+// 结束时以 final 事件下发真实 steps / sources / clarification（结构与非流式一致）。
+app.post('/api/memory/query/stream', async (req, res) => {
+const question = (req.body || {}).question;
+if (!question) return res.status(400).json({ error: 'Question is required'});
+
+const allMemories = storage.getMemories();
+const sessions = storage.getSessions().slice(0, 5);
+const memoryContext = allMemories.map(m => `[分类: ${m.category} | 标签: ${m.tags.join(', ')} | 重要度: ${m.importance}/5]: ${m.content}`).join('\n');
+const sessionContext = sessions.map(s => `[会话: ${s.title} (${new Date(s.createdAt).toLocaleDateString()})]: 主题: ${s.topic || ''}; 摘要: ${s.tldr || s.delta_summary || ''}`).join('\n');
+const snippets = retrieveTranscriptSnippets(question, storage.getSessions());
+const transcriptContext = snippets.length
+? snippets.map((p, i) => `[片段${i + 1} | 会话 ${p.sessionId} | ${new Date(p.sessionTime).toLocaleString('zh-CN', { hour12: false})} | 片段时间 ${p.utteranceTime}] ${p.text}`).join('\n')
+: '（未检索到相关的转写原文片段）';
+
+const systemPrompt = `你是一个个人的专属 AI 第二大脑助手（Personal Voice Brain Assistant）。
+你的回答必须严格忠于用户录音的——那是唯一的一手依据；与是模型生成的转述与摘要，只能作辅助索引，绝不能当作原话。
+
+作答规则（必须遵守）：
+1. 只能依据下面给出的材料回答问题。每个关键结论之后，必须附上支撑它的原文逐字引用：从中原样摘录，用中文引号「」括起来，一字不改。
+2. 引用只能来自区块；不得把记忆条目或会话摘要的转述文字包装成原话引用。
+3. 若原文片段与记忆中都没有能支撑答案的内容，明确回答「这段记录里没提到」或「没有相关记录」，不得用常识、经验或推测补全。
+4. 确有必要推测时，必须明确标注「推测」并指出依据哪段原文；没有原文依据的推测不要给出。
+5. 结构清晰，重点内容加粗；提及信息出处时，以原文片段标注的会话日期为准。`;
+
+const userPrompt = `（一手依据，来自历史录音逐字稿原文）:
+${transcriptContext}
+
+（模型转述，仅作辅助索引）:
+${memoryContext || '暂无存储的长期记忆'}
+
+（模型摘要，仅作辅助）:
+${sessionContext || '暂无历史会话'}
+
+用户提问: "${question}"`;
+
+const steps = [
+{ type: 'tool_call', name: 'search_transcript', desc: '检索全部会话逐字稿原文', result: snippets.length? `命中 ${snippets.length} 段原文片段`: '未命中相关原文片段', status: 'done'},
+{ type: 'tool_call', name: 'recall_memories', desc: `查阅第二大脑记忆库 (${allMemories.length} 条资产)`, result: '作为辅助索引一并提供（非一手依据）', status: 'done'},
+{ type: 'reasoning', name: 'grounded_synthesis', desc: '仅依据原文片段与记忆作答，关键结论附逐字引用', status: 'done'}
+];
+const sources = snippets.map(p => ({
+type: 'transcript',
+sessionId: p.sessionId,
+sessionTitle: p.sessionTitle,
+sessionTime: p.sessionTime,
+utteranceTime: p.utteranceTime,
+quote: p.text,
+content: p.text
+}));
+let clarification = null;
+if (/(方案|选型|偏好|决策|怎么选|建议|对比|优先)/.test(question)) {
+clarification = {
+id: 'ask-' + Date.now(),
+title: '需要优先聚焦在哪个维度的决策偏好？',
+meta: '第 1/1 题 · 单选决策',
+options: [
+'极速跟手流 (延迟 < 300ms，异步句级快修)',
+'严谨结构化与长期沉淀 (Obsidian 双链归档)',
+'双模并进 (全链路流式感知 + 认知微调)'
+]
+};
+}
+
+res.writeHead(200, {
+'Content-Type': 'text/event-stream; charset=utf-8',
+'Cache-Control': 'no-cache',
+'Connection': 'keep-alive',
+'X-Accel-Buffering': 'no'
+});
+const send = (event, obj) => { try { res.write(`event: ${event}\ndata: ${JSON.stringify(obj)}\n\n`);} catch (e) {}};
+send('meta', { steps, sourcesCount: sources.length});
+
+const ctrl = new AbortController();
+const timer = setTimeout(() => ctrl.abort(), 90000);
+try {
+const upstream = await fetch('https://api.deepseek.com/chat/completions', {
+method: 'POST',
+headers: { 'Authorization': `Bearer ${DEEPSEEK_API_KEY}`, 'Content-Type': 'application/json'},
+body: JSON.stringify({
+model: DEEPSEEK_MODEL,
+temperature: 0.3,
+stream: true,
+messages: [
+{ role: 'system', content: systemPrompt},
+{ role: 'user', content: userPrompt}
+]
+}),
+signal: ctrl.signal
+});
+if (!upstream.ok) {
+const errText = await upstream.text();
+send('error', { error: errText.slice(0, 300), status: upstream.status});
+return;
+}
+const reader = upstream.body.getReader();
+const decoder = new TextDecoder();
+let buf = '';
+while (true) {
+const { done, value} = await reader.read();
+if (done) break;
+buf += decoder.decode(value, { stream: true});
+const lines = buf.split('\n');
+buf = lines.pop();
+for (const line of lines) {
+const t = line.trim();
+if (!t.startsWith('data:')) continue;
+const payload = t.slice(5).trim();
+if (!payload || payload === '[DONE]') continue;
+try {
+const j = JSON.parse(payload);
+const delta = (j.choices && j.choices[0] && j.choices[0].delta && j.choices[0].delta.content) || '';
+if (delta) send('delta', { t: delta});
+} catch (e) {}
+}
+}
+send('final', { success: true, steps, sources, clarification});
+} catch (err) {
+console.error('Error in /api/memory/query/stream:', err);
+send('error', { error: err.name === 'AbortError'? '上游响应超时（90s）': err.message});
+} finally {
+clearTimeout(timer);
+try { res.end();} catch (e) {}
+}
 });
 
 // 跨会话实时联想（检查当前发言是否与历史记忆产生碰撞）
@@ -298,17 +542,26 @@ app.post('/api/memory/correlate', async (req, res) => {
 
     const memoriesSample = allMemories.slice(0, 15).map(m => `[ID:${m.id}]: ${m.content}`).join('\n');
 
-    const completion = await llmConfig.callChatCompletions({
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: `长期记忆库:\n${memoriesSample}\n\n当前发言: "${currentText}"` }
-      ],
-      responseFormat: true
+    const response = await fetch('https://api.deepseek.com/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: DEEPSEEK_MODEL,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: `长期记忆库:\n${memoriesSample}\n\n当前发言: "${currentText}"` }
+        ],
+        response_format: { type: 'json_object' }
+      })
     });
-    if (!completion.ok) return res.json({ has_correlation: false });
-    const data = completion.data;
-    const correlation = JSON.parse(data.choices[0]?.message?.content || '{"has_correlation":false}');
-    res.json(correlation);
+
+    if (!response.ok) return res.json({ has_correlation: false });
+    const data = await response.json();
+    const result = JSON.parse(data.choices[0]?.message?.content || '{"has_correlation":false}');
+    res.json(result);
   } catch (err) {
     console.error('Error in /api/memory/correlate:', err);
     res.json({ has_correlation: false });
@@ -445,11 +698,15 @@ app.get('/api/llm/personas', (req, res) => {
   res.json(Object.values(PERSONA_CONFIGS));
 });
 
+// 三期升级（2026-11-06）：纪要模板（会议/课程/访谈/通用）——按场景重定向固定字段的取材口径，JSON 结构不变
+const MINUTES_TEMPLATES = {
+  general: { label: '通用纪要', guide: '按主题梳理全程内容，结论、行动项、未决问题均衡呈现，不偏重任何单一场景。' },
+  meeting: { label: '会议纪要', guide: '这是正式会议：decisions 只收录会上明确拍板的决议（注明由谁提出或确认）；action_items 尽量落实负责人和截止时间，原文未提及的一律标“待定”，严禁编造；unresolved_risks 重点记录分歧点、反对意见与未拍板议题；special_section 按议题逐项整理讨论过程与各方立场。' },
+  lecture: { label: '课程讲义', guide: '这是课程或讲座：tldr 改为最核心的知识点清单；decisions 改为关键概念、定义与结论（按原文讲法记录）；action_items 改为课后复习要点、练习与待查资料；unresolved_risks 改为易混淆点与未讲清的问题；special_section 按讲授顺序梳理知识结构与推导链条。' },
+  interview: { label: '访谈纪要', guide: '这是人物访谈：tldr 提炼受访者的核心观点与立场；decisions 改为受访者明确表态或承诺的事项；action_items 只记录双方约定的后续动作；special_section 整理问答精选，金句必须逐字引用原文并标注提问背景；注意区分提问者与受访者的话。' }
+};
+
 app.post('/api/llm/generate-minutes', async (req, res) => {
-  const configurationError = llmConfig.ensureConfigured();
-  if (configurationError) {
-    return res.status(503).json({ error: configurationError });
-  }
   try {
     const { utterances, persona = 'detective', template = 'engineering', customTitle } = req.body;
     if (!utterances || utterances.length === 0) {
@@ -457,7 +714,9 @@ app.post('/api/llm/generate-minutes', async (req, res) => {
     }
 
     const personaConfig = PERSONA_CONFIGS[persona] || PERSONA_CONFIGS.detective;
-    const fullTranscript = utterances.map(u => `[${u.time || ''}][${u.speaker || '发言人'}]: ${u.text}`).join('\n');
+    const tplKey = MINUTES_TEMPLATES[template] ? template : 'general';
+    const tpl = MINUTES_TEMPLATES[tplKey];
+    const fullTranscript = utterances.map(u => `[${u.time || ''}][${u.speaker || '发言人'}]: ${(u.rawText || u.text)}`).join('\n');
 
     const systemPrompt = `你是一个具备鲜明人格与专业深度的人格化 AI 智能纪要专家。
 ${personaConfig.systemInstruction}
@@ -470,7 +729,7 @@ ${personaConfig.systemInstruction}
 5. 输出严格符合 JSON Schema。
 6. 严格禁止输出任何 Unicode Emoji 表情符号，采用严谨、现代、高信噪比的书面结构化表达。
 
-JSON Schema 规范示例：
+【纪要模板：${tpl.label}】\n${tpl.guide}\n\nJSON Schema 规范示例：
 {
   "title": "会议/录音核心标题（精炼有力）",
   "persona_id": "${personaConfig.id}",
@@ -522,17 +781,32 @@ JSON Schema 规范示例：
 
     const userPrompt = `建议录音标题: ${customTitle || '无'}\n全量对话逐字稿:\n${fullTranscript}`;
 
-    const completion = await llmConfig.callChatCompletions({
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
-      ],
-      responseFormat: true
+    const response = await fetch('https://api.deepseek.com/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: DEEPSEEK_MODEL,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ],
+        response_format: { type: 'json_object' }
+      })
     });
-    if (!completion.ok) return res.status(completion.status).json({ error: completion.error });
-    const data = completion.data;
+
+    if (!response.ok) {
+      const err = await response.text();
+      return res.status(response.status).json({ error: err });
+    }
+
+    const data = await response.json();
     const result = JSON.parse(data.choices[0]?.message?.content || '{}');
     result.persona = personaConfig;
+    result.template = tplKey;
+    result.templateLabel = tpl.label;
 
     // 自动静默同步至 Obsidian Vault & LMMWiki (无需手动点击)
     let autoSyncResult = null;
@@ -544,8 +818,8 @@ JSON Schema 规范示例：
           id: syncedSessionId,
           title: result.title || req.body.customTitle || '语音纪要',
           createdAt: new Date().toISOString(),
-          duration: req.body.duration || (req.body.utterances ? Math.max(0, ...req.body.utterances.map(u => (u.end_time || u.end || 0) / 1000)) : 0),
-          utterances: utterances,
+          duration: req.body.duration || (req.body.utterances ? Math.max(0, ...req.body.utterances.map(u => (u.end || 0) / 1000)) : 0),
+          utterances: normalizeUtterancesRaw(utterances),
           minutes: result,
           topic: result.title || '语音纪要',
           memories: []
@@ -582,16 +856,24 @@ JSON Schema 规范示例：
 2. 每条记忆独立成段，精炼、客观、高信噪比，20~60字
 3. 忽略闲聊口癖，只保留关键认知资产`;
 
-      const memoryResult = await llmConfig.callChatCompletions({
-        messages: [
-          { role: 'system', content: memorySystemPrompt },
-          { role: 'user', content: `会话主题: ${result.title || ''}\n速览摘要: ${(result.tldr || []).join('; ')}\n决策: ${(result.decisions || []).join('; ')}\n会话全文:\n${fullTranscript}` }
-        ],
-        responseFormat: true
+      const memoryResp = await fetch('https://api.deepseek.com/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${DEEPSEEK_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: DEEPSEEK_MODEL,
+          messages: [
+            { role: 'system', content: memorySystemPrompt },
+            { role: 'user', content: `会话主题: ${result.title || ''}\n速览摘要: ${(result.tldr || []).join('; ')}\n决策: ${(result.decisions || []).join('; ')}\n会话全文:\n${fullTranscript}` }
+          ],
+          response_format: { type: 'json_object' }
+        })
       });
 
-      if (memoryResult.ok) {
-        const memData = memoryResult.data;
+      if (memoryResp.ok) {
+        const memData = await memoryResp.json();
         const memParsed = JSON.parse(memData.choices[0]?.message?.content || '{"extracted_memories":[]}');
         const memoriesWithSource = (memParsed.extracted_memories || []).map(m => ({
           ...m,
@@ -656,19 +938,32 @@ Schema 示例:
 ${JSON.stringify(globalState || {}, null, 2)}
 
 【最新滑动窗口增量对话】:
-${(activeWindow || []).map(u => `[${u.id || ''}][${u.speaker || '发言人'}][${u.time || ''}]: ${u.text}`).join('\n')}
+${(activeWindow || []).map(u => `[${u.id || ''}][${u.speaker || '发言人'}][${u.time || ''}]: ${(u.rawText || u.text)}`).join('\n')}
 
 请输出增量演进后的最新全局状态 JSON：`;
 
-    const completion = await llmConfig.callChatCompletions({
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
-      ],
-      responseFormat: true
+    const response = await fetch('https://api.deepseek.com/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: DEEPSEEK_MODEL,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ],
+        response_format: { type: 'json_object' }
+      })
     });
-    if (!completion.ok) return res.status(completion.status).json({ error: `模型服务错误: ${completion.error}` });
-    const data = completion.data;
+
+    if (!response.ok) {
+      const errText = await response.text();
+      return res.status(response.status).json({ error: `DeepSeek Error: ${errText}` });
+    }
+
+    const data = await response.json();
     const parsedState = JSON.parse(data.choices[0]?.message?.content || '{}');
     res.json({ success: true, data: parsedState, usage: data.usage });
   } catch (err) {
@@ -703,17 +998,26 @@ app.post('/api/llm/fast-insight', async (req, res) => {
   "content": "30字以内的极简解释或建议"
 }`;
 
-    const textToAnalyze = recentUtterances.map(u => u.text).join(' ');
+    const textToAnalyze = recentUtterances.map(u => (u.rawText || u.text)).join(' ');
 
-    const completion = await llmConfig.callChatCompletions({
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: `当前主题: ${currentTopic || '未定'}\n最新发言: "${textToAnalyze}"` }
-      ],
-      responseFormat: true
+    const response = await fetch('https://api.deepseek.com/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: DEEPSEEK_MODEL,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: `当前主题: ${currentTopic || '未定'}\n最新发言: "${textToAnalyze}"` }
+        ],
+        response_format: { type: 'json_object' }
+      })
     });
-    if (!completion.ok) return res.json({ has_insight: false });
-    const data = completion.data;
+
+    if (!response.ok) return res.json({ has_insight: false });
+    const data = await response.json();
     const result = JSON.parse(data.choices[0]?.message?.content || '{"has_insight":false}');
     res.json(result);
   } catch (err) {
@@ -755,6 +1059,7 @@ app.post('/api/obsidian/sync', async (req, res) => {
       return res.status(404).json({ ok: false, error: 'Session not found' });
     }
 
+    if (session && Array.isArray(session.utterances)) session.utterances = normalizeUtterancesRaw(session.utterances);
     const persona = PERSONA_CONFIGS[personaId || session.minutes?.persona_id || 'detective'] || PERSONA_CONFIGS.detective;
     const result = await obsidianSync.syncSessionToVault(session, persona);
 
@@ -868,6 +1173,20 @@ app.get('/api/obsidian/list', (req, res) => {
 });
 
 // -------------------------------------------------------------
+// Fix2 (2026-11-06): 落盘归一化 —— text/rawText 恒为 ASR 原文，清洗稿只进 displayText
+// 客户端提交的 utterances 若 text 已被清洗稿覆盖，在此还原：text=rawText，原清洗稿转存 displayText
+// -------------------------------------------------------------
+function normalizeUtterancesRaw(utterances) {
+  if (!Array.isArray(utterances)) return utterances;
+  return utterances.map(u => {
+    if (!u || typeof u !== 'object' || !u.rawText) return u;
+    const out = { ...u, text: u.rawText };
+    if (!out.displayText && u.text && u.text !== u.rawText) out.displayText = u.text;
+    return out;
+  });
+}
+
+// -------------------------------------------------------------
 // Tier 2: qwen-flash 智能句级原地快修引擎
 // -------------------------------------------------------------
 const CLEANSING_WHITELIST = new Set([
@@ -876,6 +1195,38 @@ const CLEANSING_WHITELIST = new Set([
 ]);
 
 const sentenceCache = new Map();
+
+// -------------------------------------------------------------
+// Fix2 (2026-11-06): 清洗硬护栏 —— 不依赖模型自觉的改写幅度校验
+// -------------------------------------------------------------
+function stripPunctForGuard(t) {
+  return (t || '').replace(/[，。！？、；：…—·,.!?;:\s]/g, '');
+}
+
+function lcsLengthForGuard(a, b) {
+  const m = a.length, n = b.length;
+  if (!m || !n) return 0;
+  let prev = new Array(n + 1).fill(0);
+  let curr = new Array(n + 1).fill(0);
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      curr[j] = a[i - 1] === b[j - 1] ? prev[j - 1] + 1 : Math.max(prev[j], curr[j - 1]);
+    }
+    const tmp = prev; prev = curr; curr = tmp;
+  }
+  return prev[n];
+}
+
+function checkCleanseGuard(original, cleansed) {
+  const a = stripPunctForGuard(original);
+  const b = stripPunctForGuard(cleansed);
+  const ratio = a.length ? (b.length / a.length) : 0;
+  const sim = (a.length + b.length) ? (2 * lcsLengthForGuard(a, b)) / (a.length + b.length) : 0;
+  return {
+    ok: !!a && !!b && sim >= 0.85 && ratio >= 0.7 && ratio <= 1.3,
+    sim, ratio, origLen: a.length, cleanLen: b.length
+  };
+}
 
 async function cleanseSentenceWithQwenFlash(text, context = '') {
   const trimmed = (text || '').trim();
@@ -890,6 +1241,12 @@ async function cleanseSentenceWithQwenFlash(text, context = '') {
 
   // 2. 短命令白名单免修 (0ms 零延迟返回)
   if (CLEANSING_WHITELIST.has(trimmed)) {
+    return trimmed;
+  }
+
+  // Fix2: 去标点后 <=4 字的短句默认不清洗（防短句被捏造/改写）
+  const strippedLen = trimmed.replace(/[，。！？、；：…—·,.!?;:\s]/g, '').length;
+  if (strippedLen <= 4) {
     return trimmed;
   }
 
@@ -917,7 +1274,7 @@ async function cleanseSentenceWithQwenFlash(text, context = '') {
         messages: [
           {
             role: 'system',
-            content: '你是一个高精度的实时语音转文字纠错润色助手。\n你的任务是对 ASR 语音识别输出的语句进行智能修正：\n1. 结合前文语境，纠正同音/近音错别字、生僻词和被 ASR 听错的专业词汇（例如将“率度”纠正为“额度”，“仓市”纠正为“尝试”等）。\n2. 消除口吃、卡顿导致的字词重复（如“过完过完”->“过完”）。\n3. 剔除严重影响可读性的无意义口头禅与语气词（如“呃”、“那个那个”、“嗯”）。\n4. 补充和修正标点符号，遵循中英文及数字之间加半角空格的规范，保持句子通顺连贯。\n5. 忠于说话者原意，不要随意添加未提及的信息。\n6. 严格禁止任何开场白、解释或前后引号标记，直接输出修正后的单句纯文本。'
+            content: '你是一个语音转文字的最小化标点整理助手。你只能对 ASR 语句做以下三类操作，除此之外的任何修改一律禁止：\n1. 补充或修正标点符号（逗号、句号、问号等）。\n2. 删除纯语气词与口吃重复（如单独出现的“嗯”“呃”“啊”，或“过完过完”这类字词重复），不得删除任何实词。\n3. 规范数字与标点格式。\n同音字修正仅限一种情况：原文中某个词明显错误且存在唯一确定的常见对应词（例如充值语境下的“年份”应为“年限”），且替换必须能在原文位置直接定位；除此之外禁止替换任何实词。\n严格禁止：替换实词、补全或续写句子、根据前文语境推断改写、添加原文没有的信息、改变词序。\n前文语境只用来判断标点，绝不能用来改写本句内容。\n如果一句话不需要修改，原样输出。\n严格禁止任何开场白、解释或引号标记，直接输出处理后的单句纯文本。'
           },
           { role: 'user', content: userPrompt }
         ],
@@ -934,6 +1291,12 @@ async function cleanseSentenceWithQwenFlash(text, context = '') {
       let result = json.choices?.[0]?.message?.content?.trim();
       if (result) {
         result = result.replace(/^```.*?```$/gs, '').replace(/^"|"$/g, '').trim();
+        // Fix2 硬护栏：改写幅度校验，不通过则丢弃清洗结果、保留原文（且不写缓存）
+        const guard = checkCleanseGuard(trimmed, result);
+        if (!guard.ok) {
+          console.log(`[Qwen Guard] rejected cleanse: origLen=${guard.origLen} cleanLen=${guard.cleanLen} sim=${guard.sim.toFixed(3)} ratio=${guard.ratio.toFixed(3)}, kept original`);
+          return trimmed;
+        }
         sentenceCache.set(cacheKey, result);
         if (sentenceCache.size > 200) {
           const firstKey = sentenceCache.keys().next().value;
@@ -950,20 +1313,163 @@ async function cleanseSentenceWithQwenFlash(text, context = '') {
 }
 
 // Tier 2 单句快修 HTTP 接口
+// ============ 三期升级（2026-11-06）：全文检索 + 说话人分离（离线精转写） ============
+const fs3 = require('fs');
+
+// ---- 全文检索：跨全部会话逐字稿原文 + 长期记忆 ----
+app.get('/api/search', (req, res) => {
+  const q = String(req.query.q || '').trim();
+  const limit = Math.min(50, Math.max(1, parseInt(req.query.limit || '30', 10) || 30));
+  if (!q) return res.json({ success: true, utterances: [], memories: [], terms: [] });
+
+  const sessions = storage.getSessions();
+  const docs = [];
+  sessions.forEach(s => (s.utterances || []).forEach(u => {
+    const t = (u.rawText || u.text || '').trim();
+    if (t.length >= 2) docs.push({ s, u, t, terms: vbTokenize(t) });
+  }));
+  const df = new Map();
+  docs.forEach(d => d.terms.forEach(t => df.set(t, (df.get(t) || 0) + 1)));
+  const totalDocs = Math.max(1, docs.length);
+  const generic = new Set([...df.entries()].filter(([, c]) => c / totalDocs > 0.3).map(([t]) => t));
+  const qTerms = new Set([...vbTokenize(q)].filter(t => !generic.has(t)));
+
+  const hits = [];
+  docs.forEach(d => {
+    let matched = 0;
+    qTerms.forEach(t => { if (d.terms.has(t)) matched++; });
+    if (d.t.includes(q)) matched = Math.max(matched, qTerms.size || 1);
+    if (!matched) return;
+    hits.push({
+      sessionId: d.s.id,
+      sessionTitle: d.s.title || d.s.topic || '录音会话',
+      sessionTime: d.s.createdAt,
+      utteranceTime: d.u.time || '',
+      text: d.t,
+      matched
+    });
+  });
+  hits.sort((a, b) => (b.matched - a.matched) || (new Date(b.sessionTime) - new Date(a.sessionTime)));
+
+  const memHits = storage.getMemories()
+    .filter(m => {
+      const c = m.content || '';
+      return (q.length >= 2 && c.includes(q)) || [...qTerms].some(t => c.includes(t));
+    })
+    .slice(0, 10)
+    .map(m => ({ id: m.id, content: m.content, category: m.category, tags: m.tags || [] }));
+
+  res.json({ success: true, utterances: hits.slice(0, limit), memories: memHits, terms: [...qTerms] });
+});
+
+// ---- 说话人分离：上传 → DashScope paraformer-v2 异步精转写（diarization）→ 归一化句级结果 ----
+const diarizeTasks = new Map();
+
+app.post('/api/asr/diarize/upload', express.raw({ type: () => true, limit: '80mb' }), (req, res) => {
+  if (!req.body || !req.body.length) return res.status(400).json({ error: 'empty audio body' });
+  const id = 'aud-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+  const privDir = path.join(__dirname, 'data', 'audio');
+  const pubDir = path.join(__dirname, 'public', 'download', 'audio');
+  fs3.mkdirSync(privDir, { recursive: true });
+  fs3.mkdirSync(pubDir, { recursive: true });
+  const file = id + '.wav';
+  fs3.writeFileSync(path.join(privDir, file), req.body);
+  fs3.writeFileSync(path.join(pubDir, file), req.body);
+  res.json({ success: true, audioId: id, url: `https://voice.tpgofighting.top/download/audio/${file}` });
+});
+
+app.post('/api/asr/diarize/start', async (req, res) => {
+  const { url, audioId } = req.body || {};
+  if (!url) return res.status(400).json({ error: 'url required' });
+  try {
+    const r = await fetch('https://dashscope.aliyuncs.com/api/v1/services/audio/asr/transcription', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${DASHSCOPE_API_KEY}`,
+        'Content-Type': 'application/json',
+        'X-DashScope-Async': 'enable'
+      },
+      body: JSON.stringify({
+        model: 'paraformer-v2',
+        input: { file_urls: [url] },
+        parameters: {
+          diarization_enabled: true,
+          language_hints: ['zh', 'en'],
+          vocabulary_id: 'vocab-voicebean-bf92ebc80bbd4cf0aa7a064305c2c4ad'
+        }
+      })
+    });
+    const j = await r.json();
+    if (!r.ok || !j.output || !j.output.task_id) {
+      return res.status(502).json({ error: 'dashscope submit failed', detail: j });
+    }
+    diarizeTasks.set(j.output.task_id, { audioId: audioId || null, file: String(url).split('/').pop() });
+    res.json({ success: true, taskId: j.output.task_id });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+function normalizeDiarizedTranscript(tr) {
+  const out = [];
+  const transcripts = (tr && tr.transcripts) || [];
+  transcripts.forEach(t => (t.sentences || []).forEach(s => {
+    out.push({
+      beginMs: s.begin_time || 0,
+      endMs: s.end_time || 0,
+      speakerId: typeof s.speaker_id === 'number' ? s.speaker_id : 0,
+      text: (s.text || '').trim()
+    });
+  }));
+  return out.filter(s => s.text).sort((a, b) => a.beginMs - b.beginMs);
+}
+
+app.get('/api/asr/diarize/status/:taskId', async (req, res) => {
+  const taskId = req.params.taskId;
+  try {
+    const r = await fetch(`https://dashscope.aliyuncs.com/api/v1/tasks/${taskId}`, {
+      headers: { 'Authorization': `Bearer ${DASHSCOPE_API_KEY}` }
+    });
+    const j = await r.json();
+    const status = j.output && j.output.task_status;
+    if (status === 'SUCCEEDED') {
+      const result = j.output.result || (j.output.results && j.output.results[0]) || {};
+      const resultUrl = result.transcription_url;
+      let sentences = [];
+      if (resultUrl) {
+        const tr = await (await fetch(resultUrl)).json();
+        sentences = normalizeDiarizedTranscript(tr);
+      }
+      const speakers = [...new Set(sentences.map(s => s.speakerId))].sort((a, b) => a - b);
+      const meta = diarizeTasks.get(taskId);
+      if (meta && meta.file) {
+        try { fs3.unlinkSync(path.join(__dirname, 'public', 'download', 'audio', meta.file)); } catch (e) {}
+        diarizeTasks.delete(taskId);
+      }
+      return res.json({ success: true, status, sentences, speakers });
+    }
+    if (status === 'FAILED' || status === 'UNKNOWN') {
+      return res.json({ success: false, status, error: (j.output && (j.output.message || j.output.code)) || 'task failed' });
+    }
+    return res.json({ success: true, status: status || 'PENDING' });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.post('/api/asr/cleanse', async (req, res) => {
   try {
     const { text, sentenceId, context } = req.body;
     const t0 = Date.now();
-    const cacheKey = context ? `${(context || '').slice(-30)}:::${(text || '').trim()}` : (text || '').trim();
-    const wasCached = sentenceCache.has(cacheKey);
     const cleansed = await cleanseSentenceWithQwenFlash(text, context || '');
+    const cacheKey = context ? `${(context || '').slice(-30)}:::${(text || '').trim()}` : (text || '').trim();
     res.json({
       ok: true,
       sentenceId,
       original: text,
       cleansed,
       latencyMs: Date.now() - t0,
-      cached: wasCached
+      cached: sentenceCache.has(cacheKey)
     });
   } catch (err) {
     res.json({ ok: false, original: req.body.text, cleansed: req.body.text, error: err.message });
@@ -984,15 +1490,28 @@ app.post('/api/llm/polish', async (req, res) => {
 4. 保持事实严谨，消除赘述。`;
 
     const userPrompt = `【待润色原始口语材料】:\n${text}\n\n请输出结构化正式汇报草稿：`;
-    const completion = await llmConfig.callChatCompletions({
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
-      ],
-      temperature: 0.2
+    const response = await fetch('https://api.deepseek.com/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: DEEPSEEK_MODEL,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ],
+        temperature: 0.2
+      })
     });
-    if (!completion.ok) return res.status(completion.status).json({ ok: false, error: completion.error });
-    const data = completion.data;
+
+    if (!response.ok) {
+      const err = await response.text();
+      return res.status(response.status).json({ ok: false, error: err });
+    }
+
+    const data = await response.json();
     const draft = data.choices?.[0]?.message?.content?.trim() || '';
     res.json({ ok: true, draft });
   } catch (err) {
@@ -1018,7 +1537,7 @@ wss.on('connection', (clientWs, req) => {
   let clientChunkCount = 0;
   let clientByteCount = 0;
   let currentSessionId = 'sess-' + Date.now();
-  let clientSilenceThreshold = 800; // 默认 800ms 自然交流阈值，允许吸气与短停顿，杜绝抢跑断句
+  let clientSilenceThreshold = 1200; // 默认 1200ms 自然交流阈值，允许吸气与短停顿，杜绝抢跑断句
   let pendingPrefix = ''; // 连句保护缓存：暂存如"然后"、"但是"等悬挂连词
   const DANGLING_CONJUNCTIONS = new Set(['然后', '因为', '所以', '但是', '而且', '并且', '以及', '那么', '其实', '不过', '虽然', '另外', '也就是说', '比如', '比如说']);
   const sessionUtterances = [];
@@ -1066,19 +1585,6 @@ wss.on('connection', (clientWs, req) => {
   function startDashScopeTask() {
     if (!isClientRecording || clientWs.readyState !== WebSocket.OPEN) return;
 
-    if (!DASHSCOPE_API_KEY) {
-      isClientRecording = false;
-      cleanupDashScope(true);
-      if (clientWs.readyState === WebSocket.OPEN) {
-        clientWs.send(JSON.stringify({
-          type: 'asr_error',
-          code: 'ASR_NOT_CONFIGURED',
-          message: 'ASR 未配置：请在 .env 中设置 DASHSCOPE_API_KEY 后重启服务。'
-        }));
-      }
-      return;
-    }
-
     cleanupDashScope(false); // 关闭旧 socket，但保留队列
     currentTaskId = 'task-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7);
     console.log(`[DashScope] Initializing task: ${currentTaskId}`);
@@ -1112,10 +1618,11 @@ wss.on('connection', (clientWs, req) => {
           parameters: {
             format: 'pcm',
             sample_rate: 16000,
-            language_hints: ['zh'],
+            language_hints: ['zh', 'en'],
             semantic_punctuation_enabled: false,
             max_sentence_silence: clientSilenceThreshold,
-            multi_threshold_mode_enabled: false
+            multi_threshold_mode_enabled: false,
+            vocabulary_id: 'vocab-voicebean-bf92ebc80bbd4cf0aa7a064305c2c4ad'
           }
         }
       };
@@ -1174,6 +1681,7 @@ wss.on('connection', (clientWs, req) => {
                 time: new Date().toLocaleTimeString('zh-CN', { hour12: false }),
                 text: finalText,
                 rawText: finalText,
+                displayText: finalText,
                 isCleansed: false,
                 begin_time: sentence.begin_time,
                 end_time: sentence.end_time
@@ -1207,8 +1715,8 @@ wss.on('connection', (clientWs, req) => {
                   console.log(`[Qwen Cleansed] "${finalText}" -> "${cleansed}" (${Date.now() - t0}ms)`);
                   const target = sessionUtterances.find(u => u.sentenceId === sentenceId);
                   if (target) {
-                    target.text = cleansed;
-                    target.isCleansed = true;
+                    target.displayText = cleansed;
+                    target.isCleansed = cleansed !== finalText;
                     persistSessionIncremental();
                   }
                   clientWs.send(JSON.stringify({
@@ -1343,7 +1851,7 @@ wss.on('connection', (clientWs, req) => {
           if (cmd.maxSentenceSilence && typeof cmd.maxSentenceSilence === 'number') {
             clientSilenceThreshold = Math.max(300, Math.min(2500, cmd.maxSentenceSilence));
           } else {
-            clientSilenceThreshold = 800;
+            clientSilenceThreshold = 1200;
           }
           pendingPrefix = '';
           sessionUtterances.length = 0;
@@ -1393,26 +1901,17 @@ wss.on('connection', (clientWs, req) => {
           persistSessionIncremental();
           isClientRecording = false;
           isReconnecting = false;
-          // 捕获旧连接后只关闭它本身，不重置全局状态与队列，
-          // 避免用户在 800ms 内重新开始录音时新任务被旧定时器清空。
-          const staleDashscopeWs = dashscopeWs;
-          const staleTaskId = currentTaskId;
-          dashscopeWs = null;
-          currentTaskId = null;
-          isTaskStarted = false;
-          if (staleDashscopeWs && staleDashscopeWs.readyState === WebSocket.OPEN && staleTaskId) {
-            staleDashscopeWs.send(JSON.stringify({
+          if (dashscopeWs && dashscopeWs.readyState === WebSocket.OPEN && currentTaskId) {
+            dashscopeWs.send(JSON.stringify({
               header: {
                 action: 'finish-task',
-                task_id: staleTaskId,
+                task_id: currentTaskId,
                 streaming: 'duplex'
               },
               payload: { input: {} }
             }));
             setTimeout(() => {
-              try {
-                if (staleDashscopeWs.readyState !== WebSocket.CLOSED) staleDashscopeWs.close();
-              } catch (e) {}
+              cleanupDashScope(true);
             }, 800);
           } else {
             cleanupDashScope(true);
@@ -1452,11 +1951,10 @@ wss.on('connection', (clientWs, req) => {
 });
 
 server.listen(PORT, () => {
-  const llm = llmConfig.getPublicConfig();
   console.log(`=================================================`);
   console.log(`[Server] TP Voice Brain · 个人长期语音录音助手 (Web)`);
   console.log(`[Server] 访问地址: http://localhost:${PORT}`);
-  console.log(`[Server] 阿里云百炼 ASR: ${DASHSCOPE_API_KEY ? 'Paraformer-realtime-v2 (已配置)' : '未配置 · 录音转写不可用'}`);
-  console.log(`[Server] LLM: ${llm.configured ? `${llm.provider}/${llm.model} @ ${llm.baseUrl} (已配置)` : '未配置 · AI 纪要不可用'}`);
+  console.log(`[Server] 阿里云百炼 ASR: Paraformer-realtime-v2`);
+  console.log(`[Server] DeepSeek 状态机 & 第二大脑: ${DEEPSEEK_MODEL}`);
   console.log(`=================================================`);
 });

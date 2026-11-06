@@ -1,0 +1,15 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 二期 compat（2026-11-06）：var() 颜色 + 不透明度修饰类，CLI 与旧运行时引擎均不生成；
+   用 color-mix 实现作者本意（半透明色调），现代浏览器全支持。 */
+.bg-\[var\(--accent-purple\)\]\/10 { background-color: color-mix(in srgb, var(--accent-purple) 10%, transparent); }
+.bg-\[var\(--accent-purple\)\]\/15 { background-color: color-mix(in srgb, var(--accent-purple) 15%, transparent); }
+.bg-\[var\(--accent-blue\)\]\/20 { background-color: color-mix(in srgb, var(--accent-blue) 20%, transparent); }
+.bg-\[var\(--accent-yellow\)\]\/20 { background-color: color-mix(in srgb, var(--accent-yellow) 20%, transparent); }
+.bg-\[var\(--bg-canvas\)\]\/95 { background-color: color-mix(in srgb, var(--bg-canvas) 95%, transparent); }
+.bg-\[var\(--border-main\)\]\/40 { background-color: color-mix(in srgb, var(--border-main) 40%, transparent); }
+.border-\[var\(--accent-purple\)\]\/30 { border-color: color-mix(in srgb, var(--accent-purple) 30%, transparent); }
+.hover\:bg-\[var\(--accent-purple\)\]\/20:hover { background-color: color-mix(in srgb, var(--accent-purple) 20%, transparent); }
+.hover\:bg-\[var\(--accent-yellow\)\]\/30:hover { background-color: color-mix(in srgb, var(--accent-yellow) 30%, transparent); }

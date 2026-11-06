@@ -65,6 +65,13 @@ class AudioStreamRecorder {
     console.log(`[Audio] AudioContext 采样率: ${sourceSampleRate}Hz, 目标采样率: ${this.targetSampleRate}Hz`);
 
     this.source = this.audioContext.createMediaStreamSource(this.mediaStream);
+    // 一期升级：旁路 AnalyserNode 供真实频谱波形绘制（不影响采集链路）
+    try {
+      this.analyser = this.audioContext.createAnalyser();
+      this.analyser.fftSize = 256;
+      this.analyser.smoothingTimeConstant = 0.72;
+      this.source.connect(this.analyser);
+    } catch (e) { this.analyser = null; }
     // 使用 1024 缓冲区与直发流管道，实现端侧零缓冲采集（~20ms~60ms 极速直通）
     this.processor = this.audioContext.createScriptProcessor(1024, 1, 1);
 
@@ -118,6 +125,10 @@ class AudioStreamRecorder {
       try { this.processor.disconnect(); } catch (e) {}
       this.processor = null;
     }
+    if (this.analyser) {
+      try { this.analyser.disconnect(); } catch (e) {}
+      this.analyser = null;
+    }
     if (this.source) {
       try { this.source.disconnect(); } catch (e) {}
       this.source = null;
@@ -133,19 +144,22 @@ class AudioStreamRecorder {
   }
 
   /**
-   * 重采样算法：简单高效的线性插值
+   * 重采样算法：区间均值降采样（抗混叠）
    */
   _resample(input, fromRate, toRate) {
     if (fromRate === toRate) return input;
+    // 一期升级：区间均值降采样（自带抗混叠），替代原线性插值（高频会折叠成噪声）
     const ratio = fromRate / toRate;
     const newLength = Math.round(input.length / ratio);
     const result = new Float32Array(newLength);
     for (let i = 0; i < newLength; i++) {
-      const originIndex = i * ratio;
-      const lower = Math.floor(originIndex);
-      const upper = Math.min(lower + 1, input.length - 1);
-      const weight = originIndex - lower;
-      result[i] = input[lower] * (1 - weight) + input[upper] * weight;
+      const start = Math.floor(i * ratio);
+      let end = Math.floor((i + 1) * ratio);
+      if (end <= start) end = start + 1;
+      if (end > input.length) end = input.length;
+      let sum = 0;
+      for (let j = start; j < end; j++) sum += input[j];
+      result[i] = sum / (end - start);
     }
     return result;
   }

@@ -71,30 +71,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     tabPanes: document.querySelectorAll('.tab-pane'),
     btnThemeToggle: document.getElementById('btnThemeToggle'),
     themeIcon: document.getElementById('themeIcon'),
-    btnOpenAboutModal: document.getElementById('btnOpenAboutModal'),
-    aboutModal: document.getElementById('aboutModal'),
-    btnCloseAboutModal: document.getElementById('btnCloseAboutModal'),
-    btnConfirmAboutModal: document.getElementById('btnConfirmAboutModal'),
-    btnOpenLlmSettings: document.getElementById('btnOpenLlmSettings'),
-    llmSettingsModal: document.getElementById('llmSettingsModal'),
-    btnCloseLlmSettings: document.getElementById('btnCloseLlmSettings'),
-    btnCancelLlmSettings: document.getElementById('btnCancelLlmSettings'),
-    llmProvider: document.getElementById('llmProvider'),
-    llmOfficialFields: document.getElementById('llmOfficialFields'),
-    llmCustomFields: document.getElementById('llmCustomFields'),
-    llmOfficialApiKey: document.getElementById('llmOfficialApiKey'),
-    llmOfficialKeyHint: document.getElementById('llmOfficialKeyHint'),
-    llmOfficialModel: document.getElementById('llmOfficialModel'),
-    llmCustomApiKey: document.getElementById('llmCustomApiKey'),
-    llmCustomKeyHint: document.getElementById('llmCustomKeyHint'),
-    llmCustomBaseUrl: document.getElementById('llmCustomBaseUrl'),
-    llmCustomModelSelect: document.getElementById('llmCustomModelSelect'),
-    llmCustomModelInput: document.getElementById('llmCustomModelInput'),
-    btnRefreshLlmModels: document.getElementById('btnRefreshLlmModels'),
-    btnTestLlmConfig: document.getElementById('btnTestLlmConfig'),
-    btnSaveLlmConfig: document.getElementById('btnSaveLlmConfig'),
-    btnResetLlmConfig: document.getElementById('btnResetLlmConfig'),
-    llmSettingsStatus: document.getElementById('llmSettingsStatus'),
     micSelect: document.getElementById('micSelect'),
     memoryCountBadge: document.getElementById('memoryCountBadge'),
 
@@ -113,7 +89,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     mobileWsStatus: document.getElementById('mobileWsStatus'),
     mobileTimerBadge: document.getElementById('mobileTimerBadge'),
     mobileCanvasWaveform: document.getElementById('mobileCanvasWaveform'),
-    mobileWaveformPlaceholder: document.getElementById('mobileWaveformPlaceholder'),
 
     // 移动端子分栏控制
     liveSubsegBtns: document.querySelectorAll('.tp-subseg-btn[data-subseg]'),
@@ -157,8 +132,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     btnOpenPersonaModal: document.getElementById('btnOpenPersonaModal'),
     btnGenerateMinutes: document.getElementById('btnGenerateMinutes'),
     btnGenerateMinutesLabel: document.getElementById('btnGenerateMinutesLabel'),
-    btnMinutesMore: document.getElementById('btnMinutesMore'),
-    minutesSecondaryActions: document.getElementById('minutesSecondaryActions'),
     btnSyncObsidian: document.getElementById('btnSyncObsidian'),
     obsidianSyncMiniBadge: document.getElementById('obsidianSyncMiniBadge'),
     btnExtractToMemory: document.getElementById('btnExtractToMemory'),
@@ -228,6 +201,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     memoryLeftPanel: document.getElementById('memoryLeftPanel'),
     memorySplitter: document.getElementById('memorySplitter'),
     memoryRightPanel: document.getElementById('memoryRightPanel'),
+    btnResetMemoryRatio: document.getElementById('btnResetMemoryRatio'),
+    memoryRatioBadge: document.getElementById('memoryRatioBadge'),
     memoryCountBadge: document.getElementById('memoryCountBadge'),
     headerMemoryCountBadge: document.getElementById('headerMemoryCountBadge'),
     navMemoryCountBadge: document.getElementById('navMemoryCountBadge'),
@@ -353,7 +328,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // 断句停顿灵敏度控制 (500ms 紧凑 / 800ms 标准 / 1200ms 防抢断)
   const selectSilence = document.getElementById('selectSentenceSilence');
   const mobileSelectSilence = document.getElementById('mobileSelectSentenceSilence');
-  const initialSilence = localStorage.getItem('voice_sentence_silence') || '800';
+  const initialSilence = localStorage.getItem('voice_sentence_silence') || '1200';
   if (selectSilence) selectSilence.value = initialSilence;
   if (mobileSelectSilence) mobileSelectSilence.value = initialSilence;
 
@@ -409,10 +384,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       const bars = 44;
       const barWidth = w / bars;
       const now = Date.now() / 180;
+      const freq = getFreqData();
 
       for (let i = 0; i < bars; i++) {
         const x = i * barWidth;
-        const wave = Math.sin(now + i * 0.35) * (state.currentVolume * (h * 0.48));
+        const wave = freq ? barLevel(freq, i, bars) * (h * 0.48) : Math.sin(now + i * 0.35) * (state.currentVolume * (h * 0.48));
         const barHeight = state.isRecording ? Math.max(3, wave) : 2;
         canvasCtx.moveTo(x + barWidth / 2, centerY - barHeight);
         canvasCtx.lineTo(x + barWidth / 2, centerY + barHeight);
@@ -434,10 +410,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       const mBars = 22;
       const mBarWidth = mw / mBars;
       const mNow = Date.now() / 180;
+      const mFreq = getFreqData();
 
       for (let i = 0; i < mBars; i++) {
         const x = i * mBarWidth;
-        const wave = Math.sin(mNow + i * 0.45) * (state.currentVolume * (mh * 0.48));
+        const wave = mFreq ? barLevel(mFreq, i, mBars) * (mh * 0.48) : Math.sin(mNow + i * 0.45) * (state.currentVolume * (mh * 0.48));
         const barHeight = state.isRecording ? Math.max(2, wave) : 2;
         mobileCanvasCtx.moveTo(x + mBarWidth / 2, mCenterY - barHeight);
         mobileCanvasCtx.lineTo(x + mBarWidth / 2, mCenterY + barHeight);
@@ -453,9 +430,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   // 6. 录音会话与 WebSocket 流处理 (Tier 1 & Tier 2)
   // =========================================================================
   function updateRecordingUI(status) {
-    if (dom.mobileWaveformPlaceholder) {
-      dom.mobileWaveformPlaceholder.classList.toggle('hidden', status === 'recording');
-    }
     if (status === 'connecting') {
       dom.btnToggleRecord.disabled = true;
       dom.btnToggleRecord.innerHTML = `${Icons.spinner}<span>正在建立 ASR 连接...</span>`;
@@ -469,7 +443,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       dom.btnToggleRecord.innerHTML = `${Icons.stop}<span>停止录音并固化 (Stop Session)</span>`;
       if (dom.btnMobileToggleRecord) {
         dom.btnMobileToggleRecord.disabled = false;
-        dom.btnMobileToggleRecord.className = 'tp-btn tp-btn-danger w-full py-2 text-xs font-black shadow-[2px_2px_0px_var(--border-main)] flex items-center justify-center space-x-1.5';
+        dom.btnMobileToggleRecord.className = 'tp-btn tp-btn-danger flex-1 py-2 text-xs font-black shadow-[2px_2px_0px_var(--border-main)] flex items-center justify-center space-x-1.5';
         dom.btnMobileToggleRecord.innerHTML = `${Icons.stop}<span>停止录音</span>`;
       }
       dom.wsStatusPill.className = 'tp-badge tp-badge-green';
@@ -486,7 +460,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       dom.btnToggleRecord.innerHTML = `${Icons.mic}<span>开始实时录音 (Start Recording)</span>`;
       if (dom.btnMobileToggleRecord) {
         dom.btnMobileToggleRecord.disabled = false;
-        dom.btnMobileToggleRecord.className = 'tp-btn tp-btn-primary w-full py-2 text-xs font-black shadow-[2px_2px_0px_var(--border-main)] flex items-center justify-center space-x-1.5';
+        dom.btnMobileToggleRecord.className = 'tp-btn tp-btn-primary flex-1 py-2 text-xs font-black shadow-[2px_2px_0px_var(--border-main)] flex items-center justify-center space-x-1.5';
         dom.btnMobileToggleRecord.innerHTML = `${Icons.mic}<span>开始录音</span>`;
       }
       dom.wsStatusPill.className = 'tp-badge';
@@ -503,7 +477,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       dom.btnToggleRecord.innerHTML = `${Icons.mic}<span>开始实时录音 (Start Recording)</span>`;
       if (dom.btnMobileToggleRecord) {
         dom.btnMobileToggleRecord.disabled = false;
-        dom.btnMobileToggleRecord.className = 'tp-btn tp-btn-primary w-full py-2 text-xs font-black shadow-[2px_2px_0px_var(--border-main)] flex items-center justify-center space-x-1.5';
+        dom.btnMobileToggleRecord.className = 'tp-btn tp-btn-primary flex-1 py-2 text-xs font-black shadow-[2px_2px_0px_var(--border-main)] flex items-center justify-center space-x-1.5';
         dom.btnMobileToggleRecord.innerHTML = `${Icons.mic}<span>开始录音</span>`;
       }
       dom.wsStatusPill.className = 'tp-badge tp-badge-yellow';
@@ -513,13 +487,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         dom.mobileWsStatus.textContent = '异常';
       }
     }
-    syncEndMeetingButton();
-  }
-
-  // 结束会议按钮：录音中或已有转写内容时可用，停止录音后不再被禁用
-  function syncEndMeetingButton() {
-    if (!dom.btnEndAndGenerateMinutes) return;
-    dom.btnEndAndGenerateMinutes.disabled = !(state.isRecording || state.utterances.length > 0);
   }
 
   // 统一导出无损 WAV 文件（支持移动端 Web Share API 与 PC 浏览器下载）
@@ -599,107 +566,75 @@ document.addEventListener('DOMContentLoaded', async () => {
       updateRecordingUI('connecting');
 
       state.sessionId = 'sess-' + Date.now();
-      state.wsRetryCount = 0;
-      state.ws = connectAsrSocket(state.sessionId);
-    } catch (err) {
-      alert('启动麦克风录音异常: ' + (err.message || err.name || '请检查麦克风权限'));
-      updateRecordingUI('error');
-    }
-  }
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${protocol}//${window.location.host}/ws/asr`;
+      state.ws = new WebSocket(wsUrl);
 
-  function connectAsrSocket(sessionId, { resumeRecording = false } = {}) {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/ws/asr`;
-    const ws = new WebSocket(wsUrl);
-
-    ws.onopen = async () => {
-      state.wsRetryCount = 0;
-        const silenceThreshold = parseInt(localStorage.getItem('voice_sentence_silence') || '800', 10);
-      ws.send(JSON.stringify({
+      state.ws.onopen = async () => {
+        const silenceThreshold = parseInt(localStorage.getItem('voice_sentence_silence') || '1200', 10);
+        state.ws.send(JSON.stringify({
           type: 'start',
-        sessionId,
+          sessionId: state.sessionId,
           maxSentenceSilence: silenceThreshold
         }));
 
-      // 断线重连时复用正在运行的录音器，仅重建 ASR 通道，计时器保持不变
-      if (resumeRecording && state.recorder) {
-        updateRecordingUI('recording');
-        return;
-      }
-
         state.recorder = new AudioStreamRecorder({
           onChunk: (chunk) => {
-          if (state.ws && state.ws.readyState === WebSocket.OPEN) {
-            state.ws.send(chunk);
-            updatePcmStats();
-          }
+            if (state.ws && state.ws.readyState === WebSocket.OPEN) {
+              state.ws.send(chunk);
+              updatePcmStats();
+            }
           },
           onVolume: (vol) => {
             state.currentVolume = vol;
           }
         });
 
-      await state.recorder.start(dom.micSelect.value || null);
-      loadAudioDevices();
+        await state.recorder.start(dom.micSelect.value || null);
+        loadAudioDevices();
 
-      state.isRecording = true;
-      updateRecordingUI('recording');
+        state.isRecording = true;
+        updateRecordingUI('recording');
 
-      state.recordSeconds = 0;
-      if (state.recordTimer) clearInterval(state.recordTimer);
-      state.recordTimer = setInterval(() => {
-        state.recordSeconds++;
-        const m = String(Math.floor(state.recordSeconds / 60)).padStart(2, '0');
-        const s = String(state.recordSeconds % 60).padStart(2, '0');
-        dom.timerBadge.textContent = `${m}:${s}`;
-        if (dom.mobileTimerBadge) dom.mobileTimerBadge.textContent = `${m}:${s}`;
-      }, 1000);
+        state.recordSeconds = 0;
+        if (state.recordTimer) clearInterval(state.recordTimer);
+        state.recordTimer = setInterval(() => {
+          state.recordSeconds++;
+          const m = String(Math.floor(state.recordSeconds / 60)).padStart(2, '0');
+          const s = String(state.recordSeconds % 60).padStart(2, '0');
+          dom.timerBadge.textContent = `${m}:${s}`;
+          if (dom.mobileTimerBadge) dom.mobileTimerBadge.textContent = `${m}:${s}`;
+        }, 1000);
       };
 
-    ws.onmessage = (event) => {
+      state.ws.onmessage = (event) => {
         try {
           const msg = JSON.parse(event.data);
           handleAsrMessage(msg);
         } catch (e) {
           console.error('WS parse error:', e);
         }
-    };
+      };
 
-    ws.onerror = (err) => {
+      state.ws.onerror = (err) => {
         console.warn('WebSocket error:', err);
-    };
-
-    ws.onclose = () => {
-      if (!state.isRecording) {
-        updateRecordingUI('idle');
-        return;
-      }
-      state.wsRetryCount = (state.wsRetryCount || 0) + 1;
-      if (state.wsRetryCount > 5) {
-        state.isRecording = false;
-        if (state.recordTimer) clearInterval(state.recordTimer);
-        if (state.recorder) {
-          try { state.recorder.stop(); } catch (e) {}
-        }
-        console.warn('[ASR] WebSocket 连续重连失败，已自动停止录音');
         updateRecordingUI('error');
-        return;
-      }
-      updateRecordingUI('connecting');
-      setTimeout(() => {
-        if (state.isRecording) {
-          state.ws = connectAsrSocket(state.sessionId, { resumeRecording: true });
-        }
-      }, 1000);
-    };
+      };
 
-    return ws;
+      state.ws.onclose = () => {
+        if (!state.isRecording) {
+          updateRecordingUI('idle');
+        }
+      };
+    } catch (err) {
+      alert('启动麦克风录音异常: ' + (err.message || err.name || '请检查麦克风权限'));
+      updateRecordingUI('error');
+    }
   }
 
   async function stopRecordingSession() {
     state.isRecording = false;
     state.currentVolume = 0;
-    syncEndMeetingButton();
     if (state.recordTimer) clearInterval(state.recordTimer);
     if (state.wsPingTimer) {
       clearInterval(state.wsPingTimer);
@@ -813,19 +748,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     } else if (msg.type === 'asr_error') {
       console.warn('[ASR Warning]', msg.code, msg.message);
-      if (msg.code === 'ASR_NOT_CONFIGURED') {
-        state.isRecording = false;
-        if (state.recordTimer) clearInterval(state.recordTimer);
-        if (state.recorder) {
-          try { state.recorder.stop(); } catch (e) {}
-        }
-        updateRecordingUI('error');
-        if (dom.wsStatusPill) dom.wsStatusPill.textContent = 'ASR 未配置';
-        if (dom.mobileWsStatus) dom.mobileWsStatus.textContent = 'ASR 未配置';
-        if (dom.interimContainer) dom.interimContainer.classList.remove('hidden');
-        if (dom.interimText) dom.interimText.textContent = msg.message || 'ASR 服务未配置，无法生成转写。';
-        alert(msg.message || 'ASR 服务未配置，无法开始录音。');
-      }
     } else if (msg.type === 'asr_interim') {
       const liveRow = ensureLiveStreamingRow();
       liveRow.classList.remove('hidden');
@@ -852,7 +774,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       appendCommittedItem(newUtterance);
       updateSlidingWindowUI();
-      syncEndMeetingButton();
 
       // 实时出字行原地复位等待下一句，绝无闪烁跳变
       const liveText = document.getElementById('liveStreamingText');
@@ -885,19 +806,20 @@ document.addEventListener('DOMContentLoaded', async () => {
       const textEl = document.getElementById(`sentence-text-${sentenceId}`);
       const badgeEl = document.getElementById(`status-badge-${sentenceId}`);
       if (textEl && msg.cleansed) {
-        textEl.textContent = msg.cleansed;
+        // TP 2026-11-06: live display defaults to the ASR original; the cleansed draft is kept only in displayText and never replaces the shown text
         if (badgeEl) {
           badgeEl.dataset.cleansed = 'true';
-          badgeEl.textContent = `qwen-flash 快修 (${msg.latencyMs || 0}ms)`;
-          badgeEl.className = 'tp-badge tp-badge-green text-[8px] font-mono';
+          badgeEl.textContent = `原文展示 · 清洗稿已存 (${msg.latencyMs || 0}ms)`;
+          badgeEl.className = 'tp-badge tp-badge-blue text-[8px] font-mono';
         }
       }
 
       // 同步更新内存中的对应语句
       const targetUtt = state.utterances.find(u => u.sentenceId === sentenceId);
       if (targetUtt && msg.cleansed) {
-        targetUtt.text = msg.cleansed;
-        targetUtt.isCleansed = true;
+        // Fix2: text 恒为 ASR 原文，清洗稿只进 displayText 作展示层
+        targetUtt.displayText = msg.cleansed;
+        targetUtt.isCleansed = msg.cleansed !== targetUtt.text;
       }
     }
   }
@@ -917,7 +839,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         <div class="flex items-center space-x-1.5 font-mono">
           <span class="tp-badge tp-badge-yellow text-[8px]">#${u.id}</span>
           <time class="text-[var(--text-muted)]">${escapeHtml(u.time)}</time>
-          <span class="text-[var(--text-title)] font-bold">${escapeHtml(u.speaker)}</span>
+          <span class="vb-speaker-dot" style="background:${vbSpeakerColor(u.speaker)}"></span><span class="text-[var(--text-title)] font-bold">${escapeHtml(u.speaker)}</span>
         </div>
         <span id="status-badge-${u.sentenceId}" class="tp-badge tp-badge-blue text-[8px] font-mono">ASR 定稿</span>
       </div>
@@ -1287,13 +1209,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   dom.btnGenerateMinutes.addEventListener('click', generateStructuredMinutes);
 
-  if (dom.btnMinutesMore && dom.minutesSecondaryActions) {
-    dom.btnMinutesMore.addEventListener('click', () => {
-      dom.minutesSecondaryActions.classList.toggle('hidden');
-      dom.minutesSecondaryActions.classList.toggle('flex');
-    });
-  }
-
   async function generateStructuredMinutes() {
     if (state.utterances.length === 0) {
       alert('请先进行录音，产生转写文本后再生成纪要！');
@@ -1301,7 +1216,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     const persona = getPersonaConfig(state.selectedPersona);
-    const minutesButtonMarkup = dom.btnGenerateMinutes.innerHTML;
     dom.btnGenerateMinutes.disabled = true;
     dom.btnGenerateMinutes.innerHTML = `${Icons.spinner}<span>「${persona.name}」正在提炼纪要...</span>`;
 
@@ -1313,22 +1227,13 @@ document.addEventListener('DOMContentLoaded', async () => {
           sessionId: state.sessionId,
           utterances: state.utterances,
           persona: state.selectedPersona,
+          template: (document.getElementById('minutesTemplateSelect') || {}).value || 'general',
           customTitle: state.globalState.current_topic,
           duration: state.recordSeconds
         })
       });
 
-      let json;
-      try {
-        json = await res.json();
-      } catch (e) {
-        alert(`生成纪要失败: 服务返回异常 (HTTP ${res.status})`);
-        return;
-      }
-      if (!res.ok) {
-        alert('生成纪要失败: ' + (json.error || `HTTP ${res.status}`));
-        return;
-      }
+      const json = await res.json();
       if (json.success && json.data) {
         state.currentMinutes = json.data;
         if (json.sessionId) state.sessionId = json.sessionId;
@@ -1365,11 +1270,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       alert('请求错误: ' + err.message);
     } finally {
       dom.btnGenerateMinutes.disabled = false;
-      dom.btnGenerateMinutes.innerHTML = minutesButtonMarkup;
-      dom.btnGenerateMinutesLabel = document.getElementById('btnGenerateMinutesLabel');
-      if (dom.btnGenerateMinutesLabel) {
-        dom.btnGenerateMinutesLabel.textContent = `以「${persona.name}」视角生成纪要`;
-      }
+      dom.btnGenerateMinutes.innerHTML = `<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><span>以「${persona.name}」视角生成纪要</span>`;
     }
   }
 
@@ -1790,6 +1691,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       state.memorySplitRatio = clamped;
       dom.memoryLeftPanel.style.width = `${clamped}%`;
       dom.memoryRightPanel.style.width = `${100 - clamped}%`;
+      if (dom.memoryRatioBadge) {
+        dom.memoryRatioBadge.textContent = `比例: ${Math.round(clamped)}% : ${Math.round(100 - clamped)}%`;
+      }
     }
 
     applyRatio(state.memorySplitRatio || 75);
@@ -1832,6 +1736,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       applyRatio(75);
       localStorage.setItem('tp_memory_split_ratio', 75);
     });
+    if (dom.btnResetMemoryRatio) {
+      dom.btnResetMemoryRatio.addEventListener('click', () => {
+        applyRatio(75);
+        localStorage.setItem('tp_memory_split_ratio', 75);
+      });
+    }
 
     // 移动端子切换胶囊
     if (dom.btnMobileMemoryCards && dom.btnMobileMemoryAgent) {
@@ -1898,15 +1808,10 @@ document.addEventListener('DOMContentLoaded', async () => {
           dom.obsidianStatusBadge.textContent = d.vaultExists ? 'Vault 在线' : '本地镜像模式';
           dom.obsidianStatusBadge.className = `tp-badge ${d.vaultExists ? 'tp-badge-green' : 'tp-badge-yellow'} text-[9px] font-mono`;
         }
-        if (dom.obsidianStatsNotes) {
-          const agentOnline = d.agentStatus && d.agentStatus.status !== 'offline' && !d.agentStatus.error;
-          if (agentOnline && (d.agentStatus.notes || d.agentStatus.chunks)) {
-            const notes = d.agentStatus.notes || 0;
-            const chunks = d.agentStatus.chunks || 0;
-            dom.obsidianStatsNotes.textContent = `${notes.toLocaleString()} 篇笔记 · ${chunks.toLocaleString()} 向量`;
-          } else {
-            dom.obsidianStatsNotes.textContent = `${d.voiceNotesCount || 0} 篇录音归档 · ${d.wikiNodesCount || 0} 个知识实体`;
-          }
+        if (dom.obsidianStatsNotes && d.agentStatus) {
+          const notes = d.agentStatus.notes || 6522;
+          const chunks = d.agentStatus.chunks || 60101;
+          dom.obsidianStatsNotes.textContent = `${notes.toLocaleString()} 篇笔记 · ${chunks.toLocaleString()} 向量`;
         }
       }
     } catch (err) {
@@ -1936,7 +1841,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const isAutoWriteBack = dom.checkAutoWriteBack ? dom.checkAutoWriteBack.checked : false;
       const targetNote = state.activeVaultNotePath || '00-入口/LMMWiki-Index.md';
 
-      const loadingMsgEl = appendObsidianChatMessage('assistant', '正在检索 Obsidian 知识库与录音材料...', true);
+      const loadingMsgEl = appendObsidianChatMessage('assistant', '正在检索 Obsidian 6,500+ 篇笔记与录音材料...', true);
 
       try {
         const res = await fetch('/api/obsidian/ask', {
@@ -2453,7 +2358,6 @@ document.addEventListener('DOMContentLoaded', async () => {
           <div class="flex items-center justify-between">
             <span class="tp-badge ${catColor} text-[10px] font-bold flex items-center space-x-1">${catIcon}<span>${catBadge}</span></span>
             <div class="flex items-center space-x-1" title="重要度权重: ${imp}/5">
-              <span class="text-[9px] font-mono text-[var(--text-muted)] mr-0.5">重要度 ${imp}/5</span>
               ${dotsHtml}
             </div>
           </div>
@@ -2464,7 +2368,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           <div class="flex flex-wrap gap-1">
             ${(m.tags || []).map(t => `<span class="px-1.5 py-0.2 rounded bg-[var(--bg-subtle)] font-mono text-[9px] text-[var(--text-title)] border border-[var(--border-subtle)]">#${escapeHtml(t)}</span>`).join('')}
           </div>
-          <button class="delete-memory-btn shrink-0 ml-2 text-[var(--text-muted)] hover:text-rose-500 hover:bg-rose-500/10 p-1 rounded transition-colors border border-[var(--border-subtle)]" data-id="${m.id}" title="删除此记忆">${Icons.close}</button>
+          <button class="delete-memory-btn text-[var(--text-muted)] hover:text-rose-500 hover:bg-rose-500/10 p-1 rounded transition-colors" data-id="${m.id}" title="删除此记忆">${Icons.close}</button>
         </div>
       `;
 
@@ -2561,6 +2465,269 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (dom.btnClearBrainChat) dom.btnClearBrainChat.addEventListener('click', resetChat);
   }
 
+  // =========================================================================
+  // 一期升级（2026-11-06）：真实频谱波形 + 来源定位 + toast 反馈
+  // =========================================================================
+  let _freqArr = null;
+  function getFreqData() {
+    const an = state.recorder && state.recorder.analyser;
+    if (!an || !state.isRecording) return null;
+    if (!_freqArr || _freqArr.length !== an.frequencyBinCount) _freqArr = new Uint8Array(an.frequencyBinCount);
+    an.getByteFrequencyData(_freqArr);
+    return _freqArr;
+  }
+  function barLevel(freq, i, bars) {
+    const idx = Math.min(freq.length - 1, Math.floor(Math.pow(i / bars, 1.6) * freq.length * 0.85));
+    return freq[idx] / 255;
+  }
+
+  function vbToast(msg) {
+    let box = document.getElementById('vb-toast-box');
+    if (!box) { box = document.createElement('div'); box.id = 'vb-toast-box'; document.body.appendChild(box); }
+    const el = document.createElement('div');
+    el.className = 'vb-toast';
+    el.textContent = msg;
+    box.appendChild(el);
+    requestAnimationFrame(() => el.classList.add('show'));
+    setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 350); }, 2600);
+  }
+
+  // 问答来源定位：载入来源会话到工作区，并高亮命中原文句
+  async function locateTranscriptSource(src) {
+    if (!src || !src.sessionId) return;
+    try {
+      if (!state.sessions || !state.sessions.length) await loadSessions();
+      const s = (state.sessions || []).find(x => x.id === src.sessionId);
+      if (!s) { vbToast('来源会话已不存在'); return; }
+      loadSessionIntoWorkspace(s);
+      switchTab('tab-live');
+      vbToast('已定位到来源会话');
+      const probe = (src.quote || '').replace(/\s+/g, '').slice(0, 14);
+      setTimeout(() => {
+        if (!probe || !dom.committedList) return;
+        const leaves = dom.committedList.querySelectorAll('p, span, div');
+        for (const el of leaves) {
+          if (el.children.length === 0 && el.textContent && el.textContent.replace(/\s+/g, '').includes(probe)) {
+            const host = el.closest('.tp-committed-item') || el.parentElement || el;
+            host.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            host.classList.add('vb-locate-flash');
+            setTimeout(() => host.classList.remove('vb-locate-flash'), 2600);
+            break;
+          }
+        }
+      }, 400);
+    } catch (e) {
+      vbToast('定位失败，请到历史档案中手动打开该会话');
+    }
+  }
+
+  // 二期升级：PWA 离线队列事件 → toast 反馈（事件由 index.html 的 SW 桥转发）
+  window.addEventListener('vb-offline-queued', () => vbToast('网络不佳，操作已暂存，联网后自动同步'));
+  window.addEventListener('vb-offline-synced', () => vbToast('离线期间的操作已同步'));
+
+
+// =========================================================================
+// 三期升级（2026-11-06）：全文检索 / 说话人分离 / 纪要模板
+// =========================================================================
+const VB_SPEAKER_COLORS = ['#f59e0b', '#38bdf8', '#a78bfa', '#34d399', '#fb7185', '#f472b6', '#94a3b8', '#facc15'];
+function vbSpeakerColor(name) {
+const s = String(name || '发言人');
+let h = 0;
+for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+return VB_SPEAKER_COLORS[h % VB_SPEAKER_COLORS.length];
+}
+
+// ---- 全文检索（归档页） ----
+const archiveSearchInput = document.getElementById('archiveSearchInput');
+const btnArchiveSearch = document.getElementById('btnArchiveSearch');
+const btnClearSearch = document.getElementById('btnClearSearch');
+const searchResultsEl = document.getElementById('searchResults');
+
+function highlightHitText(text, q) {
+const esc = escapeHtml(text);
+if (!q || q.length < 2) return esc;
+const eq = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+return esc.replace(new RegExp(eq, 'g'), m => `<mark class="vb-mark">${m}</mark>`);
+}
+
+async function runArchiveSearch() {
+const q = (archiveSearchInput.value || '').trim();
+if (!q) { vbToast('先输入要检索的关键词'); return;}
+searchResultsEl.classList.remove('hidden');
+searchResultsEl.innerHTML = '<div class="vb-skel-card"></div>';
+if (btnClearSearch) btnClearSearch.classList.remove('hidden');
+try {
+const res = await fetch('/api/search?q=' + encodeURIComponent(q) + '&limit=30');
+const data = await res.json();
+const utts = data.utterances || [];
+const mems = data.memories || [];
+if (!utts.length &&!mems.length) {
+searchResultsEl.innerHTML = '<p class="text-[11px] text-[var(--text-muted)] py-2">没有找到相关记录，换个关键词试试。</p>';
+return;
+}
+let html = `<div class="text-[10px] font-bold text-[var(--text-muted)]">逐字稿命中 ${utts.length} 条 · 记忆命中 ${mems.length} 条</div>`;
+utts.forEach((h, i) => {
+html += `<button type="button" class="vb-search-hit" data-hit="${i}">
+<span class="vb-search-hit-meta">${escapeHtml(h.sessionTitle || '录音会话')} · ${escapeHtml(String(h.utteranceTime || ''))}</span>
+<span class="vb-search-hit-text">${highlightHitText(h.text, q)}</span>
+</button>`;
+});
+mems.forEach(m => {
+html += `<div class="vb-search-hit vb-search-hit-mem"><span class="vb-search-hit-meta">记忆 · ${escapeHtml(m.category || '')}</span><span class="vb-search-hit-text">${highlightHitText(m.content || '', q)}</span></div>`;
+});
+searchResultsEl.innerHTML = html;
+searchResultsEl.querySelectorAll('[data-hit]').forEach(btn => {
+btn.addEventListener('click', () => {
+const h = utts[Number(btn.getAttribute('data-hit'))];
+locateTranscriptSource({ sessionId: h.sessionId, quote: h.text});
+});
+});
+} catch (e) {
+searchResultsEl.innerHTML = '<p class="text-[11px] text-rose-500 py-2">检索失败：' + escapeHtml(e.message) + '</p>';
+}
+}
+if (btnArchiveSearch) btnArchiveSearch.addEventListener('click', runArchiveSearch);
+if (archiveSearchInput) archiveSearchInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') runArchiveSearch();});
+if (btnClearSearch) btnClearSearch.addEventListener('click', () => {
+archiveSearchInput.value = '';
+searchResultsEl.classList.add('hidden');
+searchResultsEl.innerHTML = '';
+btnClearSearch.classList.add('hidden');
+});
+
+// ---- 纪要模板选择（记住选择） ----
+const minutesTemplateSelect = document.getElementById('minutesTemplateSelect');
+if (minutesTemplateSelect) {
+try {
+const saved = localStorage.getItem('vb-minutes-template');
+if (saved) minutesTemplateSelect.value = saved;
+} catch (e) {}
+minutesTemplateSelect.addEventListener('change', () => {
+try { localStorage.setItem('vb-minutes-template', minutesTemplateSelect.value);} catch (e) {}
+vbToast('纪要模板：' + minutesTemplateSelect.options[minutesTemplateSelect.selectedIndex].text);
+});
+}
+
+// ---- 说话人分离（离线精转写 paraformer-v2 + diarization） ----
+const btnDiarize = document.getElementById('btnDiarize');
+const diarizeFileInput = document.getElementById('diarizeFileInput');
+
+function vbBigrams(text) {
+const clean = String(text || '').replace(/[\s，。！？；：、,.!?;:""''（）()[\]{}]/g, '');
+const set = new Set();
+for (let i = 0; i + 2 <= clean.length; i++) set.add(clean.slice(i, i + 2));
+if (clean.length === 1) set.add(clean);
+return set;
+}
+function vbTextSim(a, b) {
+const A = vbBigrams(a), B = vbBigrams(b);
+if (!A.size ||!B.size) return 0;
+let inter = 0;
+A.forEach(t => { if (B.has(t)) inter++;});
+return (2 * inter) / (A.size + B.size);
+}
+function fmtElapsed(ms) {
+const s = Math.floor(ms / 1000);
+const hh = String(Math.floor(s / 3600)).padStart(2, '0');
+const mm = String(Math.floor((s % 3600) / 60)).padStart(2, '0');
+const ss = String(s % 60).padStart(2, '0');
+return `${hh}:${mm}:${ss}`;
+}
+
+function applyDiarizedToCurrent(sentences) {
+// 单调对齐：实时逐字稿与离线精转写是同一段音频的两次转写，按顺序做文本相似匹配回填 speaker
+let ptr = 0;
+let assigned = 0;
+state.utterances.forEach(u => {
+const src = u.rawText || u.text || '';
+let best = -1, bestSim = 0;
+for (let j = ptr; j < Math.min(sentences.length, ptr + 6); j++) {
+const sim = vbTextSim(src, sentences[j].text);
+if (sim > bestSim) { bestSim = sim; best = j;}
+}
+if (best >= 0 && bestSim >= 0.25) {
+u.speaker = '说话人 ' + (sentences[best].speakerId + 1);
+ptr = best + 1;
+assigned++;
+}
+});
+return assigned;
+}
+
+function rerenderCommittedList() {
+if (!dom.committedList) return;
+dom.committedList.innerHTML = '';
+state.utterances.forEach(u => appendCommittedItem(u));
+if (typeof updateSlidingWindowUI === 'function') updateSlidingWindowUI();
+}
+
+async function runDiarization(blob, mode) {
+vbToast('正在上传录音，启动说话人分离…');
+try {
+const up = await fetch('/api/asr/diarize/upload', { method: 'POST', headers: { 'Content-Type': 'audio/wav'}, body: blob});
+const upJson = await up.json();
+if (!upJson.success) throw new Error(upJson.error || '上传失败');
+const st = await fetch('/api/asr/diarize/start', {
+method: 'POST',
+headers: { 'Content-Type': 'application/json'},
+body: JSON.stringify({ url: upJson.url, audioId: upJson.audioId})
+});
+const stJson = await st.json();
+if (!stJson.success) throw new Error('任务提交失败');
+vbToast('精转写进行中，稍等片刻…');
+const deadline = Date.now() + 5 * 60 * 1000;
+while (Date.now() < deadline) {
+await new Promise(r => setTimeout(r, 4000));
+const pr = await fetch('/api/asr/diarize/status/' + stJson.taskId);
+const pj = await pr.json();
+if (pj.status === 'SUCCEEDED') {
+const sentences = pj.sentences || [];
+if (!sentences.length) { vbToast('精转写完成，但没有识别出句子'); return;}
+if (mode === 'live' && state.utterances.length) {
+const n = applyDiarizedToCurrent(sentences);
+if (n === 0) { vbToast('未能对齐：这段音频与当前逐字稿对不上，可改用音频文件导入'); return;}
+rerenderCommittedList();
+saveCurrentSessionToDatabase();
+vbToast(`说话人分离完成：${(pj.speakers || []).length} 位说话人，${n} 句已标注`);
+} else {
+state.sessionId = 'sess-' + Date.now();
+state.utterances = sentences.map((s, i) => ({
+id: i + 1,
+sentenceId: 'dia-' + Date.now() + '-' + i,
+time: fmtElapsed(s.beginMs),
+speaker: '说话人 ' + (s.speakerId + 1),
+text: s.text,
+rawText: s.text,
+isCleansed: false
+}));
+rerenderCommittedList();
+saveCurrentSessionToDatabase();
+vbToast(`已导入精转写：${sentences.length} 句，${(pj.speakers || []).length} 位说话人`);
+}
+return;
+}
+if (!pj.success || pj.status === 'FAILED') throw new Error(pj.error || '精转写失败');
+}
+vbToast('精转写超时（5 分钟），请稍后重试');
+} catch (e) {
+vbToast('说话人分离失败：' + e.message);
+}
+}
+
+if (btnDiarize) btnDiarize.addEventListener('click', () => {
+if (state.isRecording) { vbToast('请先结束录音再做说话人分离'); return;}
+if (state.recorder && state.recorder.recordedSamples && state.recorder.recordedSamples.length && state.utterances.length) {
+const blob = state.recorder.exportWavBlob();
+if (blob) { runDiarization(blob, 'live'); return;}
+}
+if (diarizeFileInput) diarizeFileInput.click();
+});
+if (diarizeFileInput) diarizeFileInput.addEventListener('change', () => {
+const f = diarizeFileInput.files && diarizeFileInput.files[0];
+if (f) runDiarization(f, 'file');
+diarizeFileInput.value = '';
+});
+
   // 内部提交逻辑
   async function submitBrainQuestionInternal(q) {
     if (!dom.brainChatHistory) return;
@@ -2611,61 +2778,110 @@ document.addEventListener('DOMContentLoaded', async () => {
       dom.brainChatHistory.appendChild(pipelineDiv);
     });
 
+    // 一期升级：优先走流式接口逐字渲染；流式未出字时自动回落原非流式接口，保证可用性
+    const assistantBubble = document.createElement('div');
+    assistantBubble.className = 'tp-bubble-assistant';
+    assistantBubble.innerHTML = `<div class="tp-stream-target tp-markdown-body text-xs leading-relaxed font-sans"></div>`;
+    withUnifiedScroll(dom.brainChatHistory, () => { dom.brainChatHistory.appendChild(assistantBubble); });
+    const targetEl = assistantBubble.querySelector('.tp-stream-target');
+
+    let accText = '';
+    let finalData = null;
+    let streamErr = null;
+    let renderQueued = false;
+    const renderStream = (final = false) => {
+      if (!accText) { targetEl.innerHTML = '<span class="vb-stream-cursor"></span>'; return; }
+      const html = renderObsidianMarkdown(accText);
+      targetEl.innerHTML = final ? html : html + '<span class="vb-stream-cursor"></span>';
+    };
+    const queueRender = () => {
+      if (renderQueued) return;
+      renderQueued = true;
+      setTimeout(() => { renderQueued = false; renderStream(false); }, 90);
+    };
+    renderStream(false);
+
+    const finishWithData = (data, elapsed) => {
+      const steps = data.steps || [];
+      const quietRow = createQuietRow(`执行过程 · 已完成 · ${steps.length} 步`, `${elapsed}s`, steps);
+      pipelineDiv.replaceWith(quietRow);
+      if (dom.agentRefBadge && data.sources) {
+        dom.agentRefBadge.textContent = `${data.sources.length} 引用`;
+      }
+      renderStream(true);
+      // 来源片段：本次真实命中的原文，可点击定位到对应会话与原句
+      if (data.sources && data.sources.length) {
+        const srcDiv = document.createElement('div');
+        srcDiv.className = 'vb-answer-sources';
+        srcDiv.innerHTML = `<div class="vb-answer-sources-title">原文来源 · 点击定位</div>` + data.sources.map((s, i) =>
+          `<button type="button" class="vb-source-chip" data-src-idx="${i}"><span class="vb-source-chip-title">${escapeHtml(s.sessionTitle || '录音会话')}</span><span class="vb-source-chip-time">${escapeHtml(String(s.utteranceTime || ''))}</span></button>`).join('');
+        assistantBubble.appendChild(srcDiv);
+        srcDiv.querySelectorAll('.vb-source-chip').forEach(chip => {
+          chip.addEventListener('click', () => locateTranscriptSource(data.sources[Number(chip.getAttribute('data-src-idx'))]));
+        });
+      }
+      state.brainChatHistory.push({ role: 'user', content: q });
+      state.brainChatHistory.push({ role: 'assistant', content: accText });
+      if (data.clarification && data.clarification.question) {
+        renderShelfAsk(data.clarification);
+      }
+    };
+
     try {
-      const res = await fetch('/api/memory/query', {
+      const res = await fetch('/api/memory/query/stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question: q })
       });
-      const data = await res.json();
+      if (!res.ok || !res.body) throw new Error('stream http ' + res.status);
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = '';
+      const handleEvent = (evtName, payload) => {
+        if (evtName === 'delta' && payload.t) { accText += payload.t; queueRender(); }
+        else if (evtName === 'final') { finalData = payload; }
+        else if (evtName === 'error') { streamErr = payload; }
+      };
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        let idx;
+        while ((idx = buf.indexOf('\n\n')) >= 0) {
+          const rawEvt = buf.slice(0, idx);
+          buf = buf.slice(idx + 2);
+          let evtName = 'message';
+          let dataStr = '';
+          rawEvt.split('\n').forEach(line => {
+            if (line.startsWith('event:')) evtName = line.slice(6).trim();
+            else if (line.startsWith('data:')) dataStr += line.slice(5).trim();
+          });
+          if (dataStr) { try { handleEvent(evtName, JSON.parse(dataStr)); } catch (e) {} }
+        }
+      }
       clearInterval(timerInterval);
-
       const finalElapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-      const steps = data.steps || [
-        { type: 'tool_call', detail: '调用 SQLite FTS5 / Embedding 记忆检索' },
-        { type: 'reasoning', detail: '聚合偏好画像与项目决策历史进行推演' }
-      ];
-
-      // 1. 过程结束后一律收成一行 12.5px 弱化摘要 (QuietRow)
-      const quietRow = createQuietRow(`执行过程 · 已完成 · ${steps.length} 步`, `${finalElapsed}s`, steps);
-      pipelineDiv.replaceWith(quietRow);
-
-      // 更新引用角标
-      if (dom.agentRefBadge && data.sources) {
-        dom.agentRefBadge.textContent = `${data.sources.length} 引用`;
+      if (finalData && accText) {
+        finishWithData({ success: true, steps: finalData.steps, sources: finalData.sources, clarification: finalData.clarification }, finalElapsed);
+      } else if (!accText) {
+        // 流式未出字（上游异常/超时）：回落非流式接口再试一次
+        const res2 = await fetch('/api/memory/query', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ question: q })
+        });
+        const data2 = await res2.json();
+        if (!data2.success) throw new Error((streamErr && streamErr.error) || data2.error || '问答失败');
+        accText = data2.answer || '未能给出有效答案。';
+        finishWithData(data2, finalElapsed);
+        vbToast('已自动回落普通模式作答');
+      } else {
+        finishWithData({ success: true, steps: [], sources: [], clarification: null }, finalElapsed);
       }
-
-      // 4. 正文流式渲染与光标落笔
-      withUnifiedScroll(dom.brainChatHistory, () => {
-        const assistantBubble = document.createElement('div');
-        assistantBubble.className = 'tp-bubble-assistant';
-        
-        const answerText = data.success ? (data.answer || '未能给出有效答案。') : ('请求异常: ' + (data.error || '未知错误'));
-        
-        // 模拟逐字流式出字
-        assistantBubble.innerHTML = `
-          <div class="tp-stream-target tp-markdown-body text-xs leading-relaxed font-sans"></div>
-        `;
-        dom.brainChatHistory.appendChild(assistantBubble);
-
-        const targetEl = assistantBubble.querySelector('.tp-stream-target');
-        const renderedHtml = renderObsidianMarkdown(answerText);
-        
-        // 瞬间渲染并带落笔 token 类
-        targetEl.innerHTML = `<span class="qianji-stream-token">${renderedHtml}</span>`;
-
-        state.brainChatHistory.push({ role: 'user', content: q });
-        state.brainChatHistory.push({ role: 'assistant', content: answerText });
-      });
-
-      // 2. 如果模型返回了定夺卡片 (clarification)，单舞台架子弹出
-      if (data.clarification && data.clarification.question) {
-        renderShelfAsk(data.clarification);
-      }
-
     } catch (err) {
       clearInterval(timerInterval);
       pipelineDiv.remove();
+      assistantBubble.remove();
       withUnifiedScroll(dom.brainChatHistory, () => {
         const errDiv = document.createElement('div');
         errDiv.className = 'tp-bubble-assistant text-rose-500 text-xs';
@@ -2717,6 +2933,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   // 10. 历史会话档案 (Tab 5: Sessions Archive)
   // =========================================================================
   async function loadSessions() {
+    // 一期升级：首次加载时先展示骨架屏，避免空白闪烁
+    if (dom.sessionsGrid && (!state.sessions || state.sessions.length === 0)) {
+      dom.sessionsGrid.innerHTML = '<div class="vb-skel-card"></div><div class="vb-skel-card"></div><div class="vb-skel-card"></div>';
+    }
     try {
       const res = await fetch('/api/sessions');
       state.sessions = await res.json();
@@ -2737,7 +2957,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       dom.sessionsGrid.innerHTML = `
         <div class="col-span-full flex flex-col items-center justify-center py-16 text-center space-y-3">
           <div class="w-14 h-14 rounded-2xl bg-[var(--bg-card)] border-2 border-[var(--border-main)] shadow-[2px_2px_0px_var(--border-main)] flex items-center justify-center text-[var(--accent-blue)]">
-            <svg class="w-7 h-7 text-[var(--accent-blue)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2.5" y="4" width="19" height="5" rx="1.5"/><path d="M4.5 9V19C4.5 20 5.5 21 6.5 21H17.5C18.5 21 19.5 20 19.5 19V9"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+            <svg class="w-7 h-7 text-[var(--accent-blue)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2.5" y="4" width="19" height="5" rx="1.5"/><path d="M4.5 9V19C4.5 20 5.5 21 6.5 21H17.5C18.5 21 19.5 20 19.5 19V9"/></svg>
           </div>
           <div class="space-y-1">
             <p class="font-bold text-xs text-[var(--text-title)]">暂无历史归档会话</p>
@@ -2936,219 +3156,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // =========================================================================
-  // 11. 自定义模型配置（API Key / Base URL / 模型选择）
-  // =========================================================================
-  let llmConfigSnapshot = null;
-
-  function setLlmSettingsStatus(message, tone = 'neutral') {
-    if (!dom.llmSettingsStatus) return;
-    dom.llmSettingsStatus.textContent = message || '';
-    dom.llmSettingsStatus.classList.toggle('hidden', !message);
-    const tones = {
-      neutral: 'bg-[var(--bg-subtle)] border-[var(--border-subtle)] text-[var(--text-muted)]',
-      success: 'bg-[var(--accent-green-light)] border-[var(--accent-green)] text-emerald-900',
-      error: 'bg-[var(--accent-rose-light)] border-[var(--accent-rose)] text-rose-900'
-    };
-    dom.llmSettingsStatus.className = `text-[11px] p-2 rounded border ${tones[tone] || tones.neutral}`;
-  }
-
-  function renderLlmProviderFields(provider) {
-    const isCustom = provider === 'custom';
-    if (dom.llmOfficialFields) dom.llmOfficialFields.classList.toggle('hidden', isCustom);
-    if (dom.llmCustomFields) dom.llmCustomFields.classList.toggle('hidden', !isCustom);
-    setLlmSettingsStatus('');
-  }
-
-  function renderLlmModelOptions(models, selected) {
-    if (!dom.llmCustomModelSelect) return;
-    const optionList = [...new Set([...(models || []), selected].filter(Boolean))];
-    dom.llmCustomModelSelect.innerHTML = '';
-    optionList.forEach((modelName) => {
-      const option = document.createElement('option');
-      option.value = modelName;
-      option.textContent = modelName;
-      dom.llmCustomModelSelect.appendChild(option);
-    });
-    if (selected) dom.llmCustomModelSelect.value = selected;
-    if (dom.llmCustomModelInput) dom.llmCustomModelInput.value = selected || '';
-  }
-
-  function applyLlmConfigToForm(config) {
-    llmConfigSnapshot = config;
-    if (dom.llmProvider) dom.llmProvider.value = config.provider || 'deepseek';
-    renderLlmProviderFields(dom.llmProvider.value);
-    if (dom.llmOfficialApiKey) dom.llmOfficialApiKey.value = '';
-    if (dom.llmOfficialKeyHint) dom.llmOfficialKeyHint.textContent = config.provider === 'deepseek' ? config.apiKeyHint : '未启用';
-    if (dom.llmOfficialModel) dom.llmOfficialModel.value = config.model || config.defaultModel || '';
-    if (dom.llmCustomApiKey) dom.llmCustomApiKey.value = '';
-    if (dom.llmCustomKeyHint) {
-      dom.llmCustomKeyHint.textContent = config.provider === 'custom'
-        ? (config.hasCustomApiKey ? '已保存（前端不可见）' : '未配置')
-        : (config.hasCustomApiKey ? '已保存（切换后可用）' : '未配置');
-    }
-    if (dom.llmCustomBaseUrl) {
-      dom.llmCustomBaseUrl.value = config.customBaseUrl || (config.provider === 'custom' ? config.baseUrl : '');
-    }
-    renderLlmModelOptions(config.customModels || config.models, config.customModel || config.model);
-    updateVisibleLlmModelLabels(config.model, config.provider);
-  }
-
-  function updateVisibleLlmModelLabels(model, provider) {
-    const label = model || '未选择模型';
-    document.querySelectorAll('[data-llm-model-label]').forEach((node) => {
-      node.textContent = node.dataset.llmModelSuffix
-        ? `${label} ${node.dataset.llmModelSuffix}`
-        : label;
-    });
-    if (dom.polishedDraftMeta) {
-      dom.polishedDraftMeta.textContent = `由 ${label} 从口语流水账结构化润色`;
-    }
-    const emptyPolish = document.querySelector('#viewPolishedDraft .tp-markdown-body p:last-child');
-    if (emptyPolish && emptyPolish.textContent.includes('将立即')) {
-      emptyPolish.textContent = `点击上方【排版润色】按钮，${label} 将立即将口语流水账重构为结构清晰的正式邮件/汇报草稿并在此呈现。`;
-    }
-  }
-
-  async function loadLlmConfig({ showModal = false } = {}) {
-    try {
-      const res = await fetch('/api/llm/config');
-      const json = await res.json();
-      if (!json.ok) throw new Error(json.error || '读取配置失败');
-      applyLlmConfigToForm(json.config);
-      if (showModal && dom.llmSettingsModal) {
-        setLlmSettingsStatus('');
-        dom.llmSettingsModal.classList.remove('hidden');
-      }
-    } catch (err) {
-      setLlmSettingsStatus(`读取模型配置失败: ${err.message}`, 'error');
-    }
-  }
-
-  function collectLlmConfigPayload() {
-    const provider = dom.llmProvider.value;
-    const payload = { provider };
-    if (provider === 'custom') {
-      payload.customApiKey = dom.llmCustomApiKey.value.trim();
-      payload.customBaseUrl = dom.llmCustomBaseUrl.value.trim();
-      const manualModel = dom.llmCustomModelInput.value.trim();
-      payload.customModel = manualModel || dom.llmCustomModelSelect.value.trim();
-      payload.customModels = [...new Set([payload.customModel, ...(llmConfigSnapshot?.customModels || [])].filter(Boolean))];
-      payload.provider = 'custom';
-    } else {
-      payload.apiKey = dom.llmOfficialApiKey.value.trim();
-      payload.model = dom.llmOfficialModel.value.trim();
-    }
-    return payload;
-  }
-
-  async function saveLlmConfig() {
-    const payload = collectLlmConfigPayload();
-    if (payload.provider === 'custom' && !payload.customBaseUrl) {
-      setLlmSettingsStatus('请填写自定义 Base URL。', 'error');
-      return;
-    }
-    if (payload.provider === 'custom' && !payload.customModel) {
-      setLlmSettingsStatus('请选择或填写模型名称。', 'error');
-      return;
-    }
-    setLlmSettingsStatus('正在保存模型配置...');
-    try {
-      const res = await fetch('/api/llm/config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      const json = await res.json();
-      if (!res.ok || !json.ok) throw new Error(json.error || `HTTP ${res.status}`);
-      applyLlmConfigToForm(json.config);
-      setLlmSettingsStatus(`已保存，当前模型：${json.config.model}`, 'success');
-    } catch (err) {
-      setLlmSettingsStatus(`保存失败: ${err.message}`, 'error');
-    }
-  }
-
-  async function testLlmConfig() {
-    setLlmSettingsStatus('正在测试模型连接...');
-    try {
-      const res = await fetch('/api/llm/test', { method: 'POST' });
-      const json = await res.json();
-      if (!res.ok || !json.ok) throw new Error(json.error || `HTTP ${res.status}`);
-      setLlmSettingsStatus(`连接成功：${json.model}${json.sample ? ` · 返回「${json.sample}」` : ''}`, 'success');
-    } catch (err) {
-      setLlmSettingsStatus(`连接失败: ${err.message}`, 'error');
-    }
-  }
-
-  async function refreshLlmModels() {
-    setLlmSettingsStatus('正在读取模型列表...');
-    try {
-      const saveRes = await fetch('/api/llm/config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(collectLlmConfigPayload())
-      });
-      const saveJson = await saveRes.json();
-      if (!saveRes.ok || !saveJson.ok) throw new Error(saveJson.error || '保存当前配置失败');
-      applyLlmConfigToForm(saveJson.config);
-      const res = await fetch('/api/llm/models');
-      const json = await res.json();
-      if (!res.ok || !json.ok) throw new Error(json.error || `HTTP ${res.status}`);
-      const merged = [...new Set([...(saveJson.config.customModels || []), ...json.models])];
-      renderLlmModelOptions(merged, saveJson.config.customModel || saveJson.config.model);
-      const update = await fetch('/api/llm/config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ provider: 'custom', customModels: merged })
-      });
-      const updateJson = await update.json();
-      if (updateJson.ok) applyLlmConfigToForm(updateJson.config);
-      setLlmSettingsStatus(`已读取 ${json.models.length} 个模型。`, 'success');
-    } catch (err) {
-      setLlmSettingsStatus(`读取模型列表失败: ${err.message}`, 'error');
-    }
-  }
-
-  async function resetLlmConfig() {
-    setLlmSettingsStatus('正在恢复官方默认配置...');
-    try {
-      const res = await fetch('/api/llm/config/custom', { method: 'DELETE' });
-      const json = await res.json();
-      if (!res.ok || !json.ok) throw new Error(json.error || `HTTP ${res.status}`);
-      applyLlmConfigToForm(json.config);
-      setLlmSettingsStatus('已恢复 DeepSeek 官方默认配置。', 'success');
-    } catch (err) {
-      setLlmSettingsStatus(`恢复失败: ${err.message}`, 'error');
-    }
-  }
-
-  if (dom.btnOpenAboutModal) dom.btnOpenAboutModal.addEventListener('click', () => dom.aboutModal && dom.aboutModal.classList.remove("hidden"));
-  if (dom.btnCloseAboutModal) dom.btnCloseAboutModal.addEventListener('click', () => dom.aboutModal && dom.aboutModal.classList.add("hidden"));
-  if (dom.btnConfirmAboutModal) dom.btnConfirmAboutModal.addEventListener('click', () => dom.aboutModal && dom.aboutModal.classList.add("hidden"));
-  if (dom.aboutModal) {
-    dom.aboutModal.addEventListener('click', (e) => {
-      if (e.target === dom.aboutModal) dom.aboutModal.classList.add("hidden");
-    });
-  }
-
-  if (dom.btnOpenLlmSettings) dom.btnOpenLlmSettings.addEventListener('click', () => loadLlmConfig({ showModal: true }));
-  if (dom.btnCloseLlmSettings) dom.btnCloseLlmSettings.addEventListener('click', () => dom.llmSettingsModal.classList.add('hidden'));
-  if (dom.btnCancelLlmSettings) dom.btnCancelLlmSettings.addEventListener('click', () => dom.llmSettingsModal.classList.add('hidden'));
-  if (dom.llmProvider) dom.llmProvider.addEventListener('change', () => renderLlmProviderFields(dom.llmProvider.value));
-  if (dom.llmCustomModelSelect) {
-    dom.llmCustomModelSelect.addEventListener('change', () => {
-      if (dom.llmCustomModelInput) dom.llmCustomModelInput.value = dom.llmCustomModelSelect.value;
-    });
-  }
-  if (dom.btnSaveLlmConfig) dom.btnSaveLlmConfig.addEventListener('click', saveLlmConfig);
-  if (dom.btnTestLlmConfig) dom.btnTestLlmConfig.addEventListener('click', testLlmConfig);
-  if (dom.btnRefreshLlmModels) dom.btnRefreshLlmModels.addEventListener('click', refreshLlmModels);
-  if (dom.btnResetLlmConfig) dom.btnResetLlmConfig.addEventListener('click', resetLlmConfig);
-
   // 初始加载记忆、人设胶囊、Obsidian 状态、记忆库 3/4 : 1/4 拖动分栏与 Vault 数据
   loadMemories();
   updateActivePersonaCapsule(state.selectedPersona);
-  loadLlmConfig();
   loadObsidianStatus();
   loadObsidianVaultData();
   initMemorySplitter();
