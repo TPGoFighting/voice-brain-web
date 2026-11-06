@@ -1,14 +1,22 @@
 {
   "name": "ai-voice-bean-web",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "TP Voice Brain Web - 个人长期语音副驾与第二大脑：低延迟实时流式语音转写、句级自愈快修、10大认知人设多视角深度纪要、第二大脑长效记忆资产库与 Obsidian 双链知识库闭环系统",
+  "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "voice-brain",
+    "second-brain",
+    "realtime-asr",
+    "dashscope",
+    "deepseek",
+    "obsidian",
+    "knowledge-base"
+  ],
+  "author": "TPGoFighting",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {

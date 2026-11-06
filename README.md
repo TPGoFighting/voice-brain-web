@@ -7,6 +7,54 @@
 
 ---
 
+## 📖 项目简介
+
+### 🎯 愿景与定位
+**TP Voice Brain** 是一套面向深度思考者、系统架构师与个人开发者的**个人长期语音副驾与第二大脑**系统。
+
+在日常灵感迸发、长会谈讨论、技术方案评审或个人随想场景中，传统的「录音机」或「手机语音备忘录」常常变成**声音的死胡同**：
+- **存得越多，找得越难**：只有长达数十分钟的声音流水账，缺乏快速复盘的结构化抓手；
+- **口语杂乱与同音错字**：原始语音转写充斥口癖语气词、同音错别字与零碎语块，直接阅读心智负担极大；
+- **单一视角无法深入本质**：单调的流水账摘要无法从架构、产品、商业、风险等多维度深入剖析会谈精髓；
+- **与个人长期知识网络割裂**：录制完散落各处，无法持续演化为个人长效记忆资产，更无法与已有的个人知识库（如 Obsidian 双链笔记、Hermes 向量检索库）形成闭环共振。
+
+**Voice Brain 致力于彻底打通从「声音震动」到「知识资产沉淀」的完整闭环**：
+浏览器实时捕获高保真音频 $\rightarrow$ 毫秒级双工流式转写 $\rightarrow$ 大模型句级原地自愈快修 $\rightarrow$ 10 大认知人设多视角深度纪要 $\rightarrow$ 5 维记忆资产沉淀 $\rightarrow$ Obsidian 本地双链知识库反向追记与跨笔记 RAG 智能问答。
+
+---
+
+### ✨ 核心四大支柱
+
+1. **🎙️ 极速流式声学工作台 (Live Acoustic Workbench)**
+   - **高保真声音采集**：支持直接通过浏览器或外接 DJI Mic 等专业麦克风，以 16kHz PCM 单声道低延迟推流；
+   - **双工 WebSocket 中继**：服务端建立 `/ws/asr` 双工中继通道直连 DashScope `fun-asr-realtime`，百毫秒级实时流式出字；
+   - **句级异步自愈快修**：分句后由 `qwen-flash` 异步原地去除口语语气词、校正同音错字与标点优化，自带网络超时熔断降级（保底显示原始转写），兼顾超快响应与整洁排版。
+
+2. **🧠 10 大认知人设与多视角纪要工坊 (Cognitive Personas & Insights)**
+   - **多视角深度透视**：内置 10 种认知人设（技术极客、系统架构师、严苛审计、产品策划、商业决策者等），多维度剖析会谈切面；
+   - **结构化深度纪要**：一键生成 **30 秒核心速览 (TL;DR)**、**关键决策对账清单**、**明确待办动作**与**关联实体网络**；
+   - **正式草稿排版润色**：利用大模型将零碎的口语流水账，深度重构润色为逻辑严密、措辞得体的正式汇报邮件或草稿。
+
+3. **🧬 第二大脑与长效记忆资产库 (Long-term Memory Bank)**
+   - **5 维记忆资产提取**：自动或手动提炼「核心事实、技术决策、待办承诺、人物画像偏好、认知洞察」；
+   - **跨会话记忆演化与对账**：建立长效时间线，支持跨多场录音做记忆关联对账，让 AI 真正“记住”你的历史背景与习惯偏好；
+   - **第二大脑沉浸对话**：提供自然语言交互问答，随时唤醒沉淀的历史记忆与决策上下文。
+
+4. **📚 Obsidian / Hermes 双链知识库回流 (Vault Bi-directional Loop)**
+   - **无缝回流 Obsidian**：深度集成拥有数千篇笔记的本地 Obsidian Vault，一键将结构化纪要与记忆卡片反向追记为标准 Markdown；
+   - **双向链接与元数据**：自动生成 `[[Note]]` 双向链接、分类标签与 Frontmatter 元数据，融入个人知识图谱；
+   - **全库多跳 RAG 问答**：结合 Hermes Agent 与本地知识库向量/全文索引，支持结合当前录音与全库知识的多跳深度探查与带来源引用的智能解答。
+
+---
+
+### 🛠️ 设计哲学与技术亮点
+
+- **零构建极简部署**：纯原生单页 Web / PWA，基于本地化 Tailwind 引擎驱动，无需任何打包构建步骤，修改代码刷新即见；
+- **新野兽派工业美学**：严格贯彻 TP Brand VI v2.4 规范，工程图纸网纹背景、高对比度微阴影卡片与紧凑高效的信息排版；
+- **双端协同体系**：Web / PWA 提供跨设备桌面端与移动端覆盖，配合姊妹仓库 [voice-brain-android](https://github.com/TPGoFighting/voice-brain-android) 原生客户端，满足随身息屏录制与桌面深度处理；
+- **端到端安全与隐私保障**：第三方 API Key 严格驻留服务端环境变量或本地排除目录，不在前端泄露明文；全站 API 支持可选 Bearer Token 鉴权保护；
+- **模型自由插拔与热切换**：内置 DeepSeek 官方接口，同时运行时支持配置任意兼容 OpenAI 规范的第三方 Base URL 与自定义模型，并可在线刷新模型列表与一键连通性测试。
+
 ## 架构分层
 
 ```
@@ -19,7 +67,7 @@
 | - /ws/asr 双工流 | - 多人设纪要生成  | - 会话档案持久化  | - Vault 状态查询  |
 | - fun-asr RT     | - 排版润色正式稿  | - 记忆抽取/查询   | - 笔记检索与读取  |
 | - qwen-flash 快修| - 记忆演化/快洞察 | - 关联记忆对账    | - 反向追记写入    |
-| - 声波可视化     | - 9 种认知人设    | - 5 维记忆资产    | - Hermes 问答     |
+| - 声波可视化     | - 10 种认知人设    | - 5 维记忆资产    | - Hermes 问答     |
 +------------------+------------------+------------------+-----------------+
                      |                                    |
               data/sessions.json                 Obsidian Agent (127.0.0.1:8000)
@@ -44,6 +92,7 @@
 | 会话 | `GET/POST /api/sessions`、`GET/DELETE /api/sessions/:id` |
 | 记忆 | `GET /api/memory/all`、`POST /api/memory/add|extract|query|correlate`、`DELETE /api/memory/:id` |
 | LLM | `GET /api/llm/personas`、`POST /api/llm/generate-minutes|evolve|fast-insight|polish`、`POST /api/asr/cleanse` |
+| 模型配置 | `GET/POST /api/llm/config`、`DELETE /api/llm/config/custom`、`GET /api/llm/models`、`POST /api/llm/test` |
 | 知识库 | `GET /api/obsidian/status|search|note|list`、`POST /api/obsidian/sync|ask|append` |
 | 实时流 | `WS /ws/asr` |
 | 鉴权 | 设置 `API_AUTH_TOKEN` 后所有 `/api/*` 需携带 `Authorization: Bearer <token>`，见下方安全须知 |
@@ -104,6 +153,8 @@ npm start                 # Linux 默认 8120，其他平台默认 3000
 | `DASHSCOPE_API_KEY` | 实时 ASR 与 qwen-flash 快修 | 必填 |
 | `DEEPSEEK_API_KEY` | 纪要、记忆与问答 | 必填 |
 | `DEEPSEEK_MODEL` | DeepSeek 模型名 | `deepseek-flash` |
+| `LLM_PROVIDER` | 默认服务商：`deepseek` 或 `custom` | `deepseek` |
+| `LLM_BASE_URL` | 默认 OpenAI 兼容 Base URL | `https://api.deepseek.com` |
 | `VAULT_PATH` | Obsidian Vault 路径 | 探测 `/home/ubuntu/obsidian-vault`，否则 `data/vault-mirror` |
 | `OBSIDIAN_AGENT_URL` | Hermes / Obsidian Agent 地址 | `http://127.0.0.1:8000` |
 | `ADMIN_API_KEY` | Obsidian Agent 管理口令 | 空（必须通过环境变量注入） |
@@ -113,6 +164,8 @@ npm start                 # Linux 默认 8120，其他平台默认 3000
 ## ⚠️ 安全须知
 
 - API 密钥仅存在于服务端环境变量，不再通过任何 HTTP 端点下发；ASR 转写经由服务端 WebSocket 中继完成。
+- 页面「模型设置」支持在运行时填写自定义 API Key、Base URL，并从 `/models` 或手动输入选择模型；配置保存在 `data/llm-config.json`，该文件由 `.gitignore` 排除。前端仅能看到密钥是否配置，无法读取密钥明文。
+- 自定义接口需兼容 OpenAI Chat Completions 协议：`<Base URL>/chat/completions`；若提供 `<Base URL>/models` 或 `<Base URL>/v1/models`，可一键刷新模型列表。
 - 所有 `/api/*` 端点支持可选鉴权：设置 `API_AUTH_TOKEN` 环境变量后，请求必须携带 `Authorization: Bearer <API_AUTH_TOKEN>`；未设置时保持本地开放访问。公网部署时建议务必设置该令牌。
 - 本仓库 **不含** 任何真实密钥、录音会话数据、记忆数据或 Android APK：`.env`、`data/*.json`、`*.apk`、`node_modules` 均已由 `.gitignore` 排除。
 - 源码内不内置任何默认口令，`ADMIN_API_KEY` 只从环境变量读取。

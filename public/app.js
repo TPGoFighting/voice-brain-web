@@ -71,6 +71,30 @@ document.addEventListener('DOMContentLoaded', async () => {
     tabPanes: document.querySelectorAll('.tab-pane'),
     btnThemeToggle: document.getElementById('btnThemeToggle'),
     themeIcon: document.getElementById('themeIcon'),
+    btnOpenAboutModal: document.getElementById('btnOpenAboutModal'),
+    aboutModal: document.getElementById('aboutModal'),
+    btnCloseAboutModal: document.getElementById('btnCloseAboutModal'),
+    btnConfirmAboutModal: document.getElementById('btnConfirmAboutModal'),
+    btnOpenLlmSettings: document.getElementById('btnOpenLlmSettings'),
+    llmSettingsModal: document.getElementById('llmSettingsModal'),
+    btnCloseLlmSettings: document.getElementById('btnCloseLlmSettings'),
+    btnCancelLlmSettings: document.getElementById('btnCancelLlmSettings'),
+    llmProvider: document.getElementById('llmProvider'),
+    llmOfficialFields: document.getElementById('llmOfficialFields'),
+    llmCustomFields: document.getElementById('llmCustomFields'),
+    llmOfficialApiKey: document.getElementById('llmOfficialApiKey'),
+    llmOfficialKeyHint: document.getElementById('llmOfficialKeyHint'),
+    llmOfficialModel: document.getElementById('llmOfficialModel'),
+    llmCustomApiKey: document.getElementById('llmCustomApiKey'),
+    llmCustomKeyHint: document.getElementById('llmCustomKeyHint'),
+    llmCustomBaseUrl: document.getElementById('llmCustomBaseUrl'),
+    llmCustomModelSelect: document.getElementById('llmCustomModelSelect'),
+    llmCustomModelInput: document.getElementById('llmCustomModelInput'),
+    btnRefreshLlmModels: document.getElementById('btnRefreshLlmModels'),
+    btnTestLlmConfig: document.getElementById('btnTestLlmConfig'),
+    btnSaveLlmConfig: document.getElementById('btnSaveLlmConfig'),
+    btnResetLlmConfig: document.getElementById('btnResetLlmConfig'),
+    llmSettingsStatus: document.getElementById('llmSettingsStatus'),
     micSelect: document.getElementById('micSelect'),
     memoryCountBadge: document.getElementById('memoryCountBadge'),
 
@@ -89,6 +113,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     mobileWsStatus: document.getElementById('mobileWsStatus'),
     mobileTimerBadge: document.getElementById('mobileTimerBadge'),
     mobileCanvasWaveform: document.getElementById('mobileCanvasWaveform'),
+    mobileWaveformPlaceholder: document.getElementById('mobileWaveformPlaceholder'),
 
     // 移动端子分栏控制
     liveSubsegBtns: document.querySelectorAll('.tp-subseg-btn[data-subseg]'),
@@ -132,6 +157,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     btnOpenPersonaModal: document.getElementById('btnOpenPersonaModal'),
     btnGenerateMinutes: document.getElementById('btnGenerateMinutes'),
     btnGenerateMinutesLabel: document.getElementById('btnGenerateMinutesLabel'),
+    btnMinutesMore: document.getElementById('btnMinutesMore'),
+    minutesSecondaryActions: document.getElementById('minutesSecondaryActions'),
     btnSyncObsidian: document.getElementById('btnSyncObsidian'),
     obsidianSyncMiniBadge: document.getElementById('obsidianSyncMiniBadge'),
     btnExtractToMemory: document.getElementById('btnExtractToMemory'),
@@ -201,8 +228,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     memoryLeftPanel: document.getElementById('memoryLeftPanel'),
     memorySplitter: document.getElementById('memorySplitter'),
     memoryRightPanel: document.getElementById('memoryRightPanel'),
-    btnResetMemoryRatio: document.getElementById('btnResetMemoryRatio'),
-    memoryRatioBadge: document.getElementById('memoryRatioBadge'),
     memoryCountBadge: document.getElementById('memoryCountBadge'),
     headerMemoryCountBadge: document.getElementById('headerMemoryCountBadge'),
     navMemoryCountBadge: document.getElementById('navMemoryCountBadge'),
@@ -428,6 +453,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   // 6. 录音会话与 WebSocket 流处理 (Tier 1 & Tier 2)
   // =========================================================================
   function updateRecordingUI(status) {
+    if (dom.mobileWaveformPlaceholder) {
+      dom.mobileWaveformPlaceholder.classList.toggle('hidden', status === 'recording');
+    }
     if (status === 'connecting') {
       dom.btnToggleRecord.disabled = true;
       dom.btnToggleRecord.innerHTML = `${Icons.spinner}<span>正在建立 ASR 连接...</span>`;
@@ -441,7 +469,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       dom.btnToggleRecord.innerHTML = `${Icons.stop}<span>停止录音并固化 (Stop Session)</span>`;
       if (dom.btnMobileToggleRecord) {
         dom.btnMobileToggleRecord.disabled = false;
-        dom.btnMobileToggleRecord.className = 'tp-btn tp-btn-danger flex-1 py-2 text-xs font-black shadow-[2px_2px_0px_var(--border-main)] flex items-center justify-center space-x-1.5';
+        dom.btnMobileToggleRecord.className = 'tp-btn tp-btn-danger w-full py-2 text-xs font-black shadow-[2px_2px_0px_var(--border-main)] flex items-center justify-center space-x-1.5';
         dom.btnMobileToggleRecord.innerHTML = `${Icons.stop}<span>停止录音</span>`;
       }
       dom.wsStatusPill.className = 'tp-badge tp-badge-green';
@@ -458,7 +486,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       dom.btnToggleRecord.innerHTML = `${Icons.mic}<span>开始实时录音 (Start Recording)</span>`;
       if (dom.btnMobileToggleRecord) {
         dom.btnMobileToggleRecord.disabled = false;
-        dom.btnMobileToggleRecord.className = 'tp-btn tp-btn-primary flex-1 py-2 text-xs font-black shadow-[2px_2px_0px_var(--border-main)] flex items-center justify-center space-x-1.5';
+        dom.btnMobileToggleRecord.className = 'tp-btn tp-btn-primary w-full py-2 text-xs font-black shadow-[2px_2px_0px_var(--border-main)] flex items-center justify-center space-x-1.5';
         dom.btnMobileToggleRecord.innerHTML = `${Icons.mic}<span>开始录音</span>`;
       }
       dom.wsStatusPill.className = 'tp-badge';
@@ -475,7 +503,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       dom.btnToggleRecord.innerHTML = `${Icons.mic}<span>开始实时录音 (Start Recording)</span>`;
       if (dom.btnMobileToggleRecord) {
         dom.btnMobileToggleRecord.disabled = false;
-        dom.btnMobileToggleRecord.className = 'tp-btn tp-btn-primary flex-1 py-2 text-xs font-black shadow-[2px_2px_0px_var(--border-main)] flex items-center justify-center space-x-1.5';
+        dom.btnMobileToggleRecord.className = 'tp-btn tp-btn-primary w-full py-2 text-xs font-black shadow-[2px_2px_0px_var(--border-main)] flex items-center justify-center space-x-1.5';
         dom.btnMobileToggleRecord.innerHTML = `${Icons.mic}<span>开始录音</span>`;
       }
       dom.wsStatusPill.className = 'tp-badge tp-badge-yellow';
@@ -485,6 +513,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         dom.mobileWsStatus.textContent = '异常';
       }
     }
+    syncEndMeetingButton();
+  }
+
+  // 结束会议按钮：录音中或已有转写内容时可用，停止录音后不再被禁用
+  function syncEndMeetingButton() {
+    if (!dom.btnEndAndGenerateMinutes) return;
+    dom.btnEndAndGenerateMinutes.disabled = !(state.isRecording || state.utterances.length > 0);
   }
 
   // 统一导出无损 WAV 文件（支持移动端 Web Share API 与 PC 浏览器下载）
@@ -664,6 +699,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   async function stopRecordingSession() {
     state.isRecording = false;
     state.currentVolume = 0;
+    syncEndMeetingButton();
     if (state.recordTimer) clearInterval(state.recordTimer);
     if (state.wsPingTimer) {
       clearInterval(state.wsPingTimer);
@@ -777,6 +813,19 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     } else if (msg.type === 'asr_error') {
       console.warn('[ASR Warning]', msg.code, msg.message);
+      if (msg.code === 'ASR_NOT_CONFIGURED') {
+        state.isRecording = false;
+        if (state.recordTimer) clearInterval(state.recordTimer);
+        if (state.recorder) {
+          try { state.recorder.stop(); } catch (e) {}
+        }
+        updateRecordingUI('error');
+        if (dom.wsStatusPill) dom.wsStatusPill.textContent = 'ASR 未配置';
+        if (dom.mobileWsStatus) dom.mobileWsStatus.textContent = 'ASR 未配置';
+        if (dom.interimContainer) dom.interimContainer.classList.remove('hidden');
+        if (dom.interimText) dom.interimText.textContent = msg.message || 'ASR 服务未配置，无法生成转写。';
+        alert(msg.message || 'ASR 服务未配置，无法开始录音。');
+      }
     } else if (msg.type === 'asr_interim') {
       const liveRow = ensureLiveStreamingRow();
       liveRow.classList.remove('hidden');
@@ -803,6 +852,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       appendCommittedItem(newUtterance);
       updateSlidingWindowUI();
+      syncEndMeetingButton();
 
       // 实时出字行原地复位等待下一句，绝无闪烁跳变
       const liveText = document.getElementById('liveStreamingText');
@@ -1237,6 +1287,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   dom.btnGenerateMinutes.addEventListener('click', generateStructuredMinutes);
 
+  if (dom.btnMinutesMore && dom.minutesSecondaryActions) {
+    dom.btnMinutesMore.addEventListener('click', () => {
+      dom.minutesSecondaryActions.classList.toggle('hidden');
+      dom.minutesSecondaryActions.classList.toggle('flex');
+    });
+  }
+
   async function generateStructuredMinutes() {
     if (state.utterances.length === 0) {
       alert('请先进行录音，产生转写文本后再生成纪要！');
@@ -1244,6 +1301,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     const persona = getPersonaConfig(state.selectedPersona);
+    const minutesButtonMarkup = dom.btnGenerateMinutes.innerHTML;
     dom.btnGenerateMinutes.disabled = true;
     dom.btnGenerateMinutes.innerHTML = `${Icons.spinner}<span>「${persona.name}」正在提炼纪要...</span>`;
 
@@ -1260,7 +1318,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         })
       });
 
-      const json = await res.json();
+      let json;
+      try {
+        json = await res.json();
+      } catch (e) {
+        alert(`生成纪要失败: 服务返回异常 (HTTP ${res.status})`);
+        return;
+      }
+      if (!res.ok) {
+        alert('生成纪要失败: ' + (json.error || `HTTP ${res.status}`));
+        return;
+      }
       if (json.success && json.data) {
         state.currentMinutes = json.data;
         if (json.sessionId) state.sessionId = json.sessionId;
@@ -1297,7 +1365,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       alert('请求错误: ' + err.message);
     } finally {
       dom.btnGenerateMinutes.disabled = false;
-      dom.btnGenerateMinutes.innerHTML = `<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><span>以「${persona.name}」视角生成纪要</span>`;
+      dom.btnGenerateMinutes.innerHTML = minutesButtonMarkup;
+      dom.btnGenerateMinutesLabel = document.getElementById('btnGenerateMinutesLabel');
+      if (dom.btnGenerateMinutesLabel) {
+        dom.btnGenerateMinutesLabel.textContent = `以「${persona.name}」视角生成纪要`;
+      }
     }
   }
 
@@ -1718,9 +1790,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       state.memorySplitRatio = clamped;
       dom.memoryLeftPanel.style.width = `${clamped}%`;
       dom.memoryRightPanel.style.width = `${100 - clamped}%`;
-      if (dom.memoryRatioBadge) {
-        dom.memoryRatioBadge.textContent = `比例: ${Math.round(clamped)}% : ${Math.round(100 - clamped)}%`;
-      }
     }
 
     applyRatio(state.memorySplitRatio || 75);
@@ -1763,12 +1832,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       applyRatio(75);
       localStorage.setItem('tp_memory_split_ratio', 75);
     });
-    if (dom.btnResetMemoryRatio) {
-      dom.btnResetMemoryRatio.addEventListener('click', () => {
-        applyRatio(75);
-        localStorage.setItem('tp_memory_split_ratio', 75);
-      });
-    }
 
     // 移动端子切换胶囊
     if (dom.btnMobileMemoryCards && dom.btnMobileMemoryAgent) {
@@ -1835,10 +1898,15 @@ document.addEventListener('DOMContentLoaded', async () => {
           dom.obsidianStatusBadge.textContent = d.vaultExists ? 'Vault 在线' : '本地镜像模式';
           dom.obsidianStatusBadge.className = `tp-badge ${d.vaultExists ? 'tp-badge-green' : 'tp-badge-yellow'} text-[9px] font-mono`;
         }
-        if (dom.obsidianStatsNotes && d.agentStatus) {
-          const notes = d.agentStatus.notes || 6522;
-          const chunks = d.agentStatus.chunks || 60101;
-          dom.obsidianStatsNotes.textContent = `${notes.toLocaleString()} 篇笔记 · ${chunks.toLocaleString()} 向量`;
+        if (dom.obsidianStatsNotes) {
+          const agentOnline = d.agentStatus && d.agentStatus.status !== 'offline' && !d.agentStatus.error;
+          if (agentOnline && (d.agentStatus.notes || d.agentStatus.chunks)) {
+            const notes = d.agentStatus.notes || 0;
+            const chunks = d.agentStatus.chunks || 0;
+            dom.obsidianStatsNotes.textContent = `${notes.toLocaleString()} 篇笔记 · ${chunks.toLocaleString()} 向量`;
+          } else {
+            dom.obsidianStatsNotes.textContent = `${d.voiceNotesCount || 0} 篇录音归档 · ${d.wikiNodesCount || 0} 个知识实体`;
+          }
         }
       }
     } catch (err) {
@@ -1868,7 +1936,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const isAutoWriteBack = dom.checkAutoWriteBack ? dom.checkAutoWriteBack.checked : false;
       const targetNote = state.activeVaultNotePath || '00-入口/LMMWiki-Index.md';
 
-      const loadingMsgEl = appendObsidianChatMessage('assistant', '正在检索 Obsidian 6,500+ 篇笔记与录音材料...', true);
+      const loadingMsgEl = appendObsidianChatMessage('assistant', '正在检索 Obsidian 知识库与录音材料...', true);
 
       try {
         const res = await fetch('/api/obsidian/ask', {
@@ -2385,6 +2453,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           <div class="flex items-center justify-between">
             <span class="tp-badge ${catColor} text-[10px] font-bold flex items-center space-x-1">${catIcon}<span>${catBadge}</span></span>
             <div class="flex items-center space-x-1" title="重要度权重: ${imp}/5">
+              <span class="text-[9px] font-mono text-[var(--text-muted)] mr-0.5">重要度 ${imp}/5</span>
               ${dotsHtml}
             </div>
           </div>
@@ -2395,7 +2464,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           <div class="flex flex-wrap gap-1">
             ${(m.tags || []).map(t => `<span class="px-1.5 py-0.2 rounded bg-[var(--bg-subtle)] font-mono text-[9px] text-[var(--text-title)] border border-[var(--border-subtle)]">#${escapeHtml(t)}</span>`).join('')}
           </div>
-          <button class="delete-memory-btn text-[var(--text-muted)] hover:text-rose-500 hover:bg-rose-500/10 p-1 rounded transition-colors" data-id="${m.id}" title="删除此记忆">${Icons.close}</button>
+          <button class="delete-memory-btn shrink-0 ml-2 text-[var(--text-muted)] hover:text-rose-500 hover:bg-rose-500/10 p-1 rounded transition-colors border border-[var(--border-subtle)]" data-id="${m.id}" title="删除此记忆">${Icons.close}</button>
         </div>
       `;
 
@@ -2668,7 +2737,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       dom.sessionsGrid.innerHTML = `
         <div class="col-span-full flex flex-col items-center justify-center py-16 text-center space-y-3">
           <div class="w-14 h-14 rounded-2xl bg-[var(--bg-card)] border-2 border-[var(--border-main)] shadow-[2px_2px_0px_var(--border-main)] flex items-center justify-center text-[var(--accent-blue)]">
-            <svg class="w-7 h-7 text-[var(--accent-blue)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2.5" y="4" width="19" height="5" rx="1.5"/><path d="M4.5 9V19C4.5 20 5.5 21 6.5 21H17.5C18.5 21 19.5 20 19.5 19V9"/></svg>
+            <svg class="w-7 h-7 text-[var(--accent-blue)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2.5" y="4" width="19" height="5" rx="1.5"/><path d="M4.5 9V19C4.5 20 5.5 21 6.5 21H17.5C18.5 21 19.5 20 19.5 19V9"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
           </div>
           <div class="space-y-1">
             <p class="font-bold text-xs text-[var(--text-title)]">暂无历史归档会话</p>
@@ -2867,9 +2936,219 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  // =========================================================================
+  // 11. 自定义模型配置（API Key / Base URL / 模型选择）
+  // =========================================================================
+  let llmConfigSnapshot = null;
+
+  function setLlmSettingsStatus(message, tone = 'neutral') {
+    if (!dom.llmSettingsStatus) return;
+    dom.llmSettingsStatus.textContent = message || '';
+    dom.llmSettingsStatus.classList.toggle('hidden', !message);
+    const tones = {
+      neutral: 'bg-[var(--bg-subtle)] border-[var(--border-subtle)] text-[var(--text-muted)]',
+      success: 'bg-[var(--accent-green-light)] border-[var(--accent-green)] text-emerald-900',
+      error: 'bg-[var(--accent-rose-light)] border-[var(--accent-rose)] text-rose-900'
+    };
+    dom.llmSettingsStatus.className = `text-[11px] p-2 rounded border ${tones[tone] || tones.neutral}`;
+  }
+
+  function renderLlmProviderFields(provider) {
+    const isCustom = provider === 'custom';
+    if (dom.llmOfficialFields) dom.llmOfficialFields.classList.toggle('hidden', isCustom);
+    if (dom.llmCustomFields) dom.llmCustomFields.classList.toggle('hidden', !isCustom);
+    setLlmSettingsStatus('');
+  }
+
+  function renderLlmModelOptions(models, selected) {
+    if (!dom.llmCustomModelSelect) return;
+    const optionList = [...new Set([...(models || []), selected].filter(Boolean))];
+    dom.llmCustomModelSelect.innerHTML = '';
+    optionList.forEach((modelName) => {
+      const option = document.createElement('option');
+      option.value = modelName;
+      option.textContent = modelName;
+      dom.llmCustomModelSelect.appendChild(option);
+    });
+    if (selected) dom.llmCustomModelSelect.value = selected;
+    if (dom.llmCustomModelInput) dom.llmCustomModelInput.value = selected || '';
+  }
+
+  function applyLlmConfigToForm(config) {
+    llmConfigSnapshot = config;
+    if (dom.llmProvider) dom.llmProvider.value = config.provider || 'deepseek';
+    renderLlmProviderFields(dom.llmProvider.value);
+    if (dom.llmOfficialApiKey) dom.llmOfficialApiKey.value = '';
+    if (dom.llmOfficialKeyHint) dom.llmOfficialKeyHint.textContent = config.provider === 'deepseek' ? config.apiKeyHint : '未启用';
+    if (dom.llmOfficialModel) dom.llmOfficialModel.value = config.model || config.defaultModel || '';
+    if (dom.llmCustomApiKey) dom.llmCustomApiKey.value = '';
+    if (dom.llmCustomKeyHint) {
+      dom.llmCustomKeyHint.textContent = config.provider === 'custom'
+        ? (config.hasCustomApiKey ? '已保存（前端不可见）' : '未配置')
+        : (config.hasCustomApiKey ? '已保存（切换后可用）' : '未配置');
+    }
+    if (dom.llmCustomBaseUrl) {
+      dom.llmCustomBaseUrl.value = config.customBaseUrl || (config.provider === 'custom' ? config.baseUrl : '');
+    }
+    renderLlmModelOptions(config.customModels || config.models, config.customModel || config.model);
+    updateVisibleLlmModelLabels(config.model, config.provider);
+  }
+
+  function updateVisibleLlmModelLabels(model, provider) {
+    const label = model || '未选择模型';
+    document.querySelectorAll('[data-llm-model-label]').forEach((node) => {
+      node.textContent = node.dataset.llmModelSuffix
+        ? `${label} ${node.dataset.llmModelSuffix}`
+        : label;
+    });
+    if (dom.polishedDraftMeta) {
+      dom.polishedDraftMeta.textContent = `由 ${label} 从口语流水账结构化润色`;
+    }
+    const emptyPolish = document.querySelector('#viewPolishedDraft .tp-markdown-body p:last-child');
+    if (emptyPolish && emptyPolish.textContent.includes('将立即')) {
+      emptyPolish.textContent = `点击上方【排版润色】按钮，${label} 将立即将口语流水账重构为结构清晰的正式邮件/汇报草稿并在此呈现。`;
+    }
+  }
+
+  async function loadLlmConfig({ showModal = false } = {}) {
+    try {
+      const res = await fetch('/api/llm/config');
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error || '读取配置失败');
+      applyLlmConfigToForm(json.config);
+      if (showModal && dom.llmSettingsModal) {
+        setLlmSettingsStatus('');
+        dom.llmSettingsModal.classList.remove('hidden');
+      }
+    } catch (err) {
+      setLlmSettingsStatus(`读取模型配置失败: ${err.message}`, 'error');
+    }
+  }
+
+  function collectLlmConfigPayload() {
+    const provider = dom.llmProvider.value;
+    const payload = { provider };
+    if (provider === 'custom') {
+      payload.customApiKey = dom.llmCustomApiKey.value.trim();
+      payload.customBaseUrl = dom.llmCustomBaseUrl.value.trim();
+      const manualModel = dom.llmCustomModelInput.value.trim();
+      payload.customModel = manualModel || dom.llmCustomModelSelect.value.trim();
+      payload.customModels = [...new Set([payload.customModel, ...(llmConfigSnapshot?.customModels || [])].filter(Boolean))];
+      payload.provider = 'custom';
+    } else {
+      payload.apiKey = dom.llmOfficialApiKey.value.trim();
+      payload.model = dom.llmOfficialModel.value.trim();
+    }
+    return payload;
+  }
+
+  async function saveLlmConfig() {
+    const payload = collectLlmConfigPayload();
+    if (payload.provider === 'custom' && !payload.customBaseUrl) {
+      setLlmSettingsStatus('请填写自定义 Base URL。', 'error');
+      return;
+    }
+    if (payload.provider === 'custom' && !payload.customModel) {
+      setLlmSettingsStatus('请选择或填写模型名称。', 'error');
+      return;
+    }
+    setLlmSettingsStatus('正在保存模型配置...');
+    try {
+      const res = await fetch('/api/llm/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const json = await res.json();
+      if (!res.ok || !json.ok) throw new Error(json.error || `HTTP ${res.status}`);
+      applyLlmConfigToForm(json.config);
+      setLlmSettingsStatus(`已保存，当前模型：${json.config.model}`, 'success');
+    } catch (err) {
+      setLlmSettingsStatus(`保存失败: ${err.message}`, 'error');
+    }
+  }
+
+  async function testLlmConfig() {
+    setLlmSettingsStatus('正在测试模型连接...');
+    try {
+      const res = await fetch('/api/llm/test', { method: 'POST' });
+      const json = await res.json();
+      if (!res.ok || !json.ok) throw new Error(json.error || `HTTP ${res.status}`);
+      setLlmSettingsStatus(`连接成功：${json.model}${json.sample ? ` · 返回「${json.sample}」` : ''}`, 'success');
+    } catch (err) {
+      setLlmSettingsStatus(`连接失败: ${err.message}`, 'error');
+    }
+  }
+
+  async function refreshLlmModels() {
+    setLlmSettingsStatus('正在读取模型列表...');
+    try {
+      const saveRes = await fetch('/api/llm/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(collectLlmConfigPayload())
+      });
+      const saveJson = await saveRes.json();
+      if (!saveRes.ok || !saveJson.ok) throw new Error(saveJson.error || '保存当前配置失败');
+      applyLlmConfigToForm(saveJson.config);
+      const res = await fetch('/api/llm/models');
+      const json = await res.json();
+      if (!res.ok || !json.ok) throw new Error(json.error || `HTTP ${res.status}`);
+      const merged = [...new Set([...(saveJson.config.customModels || []), ...json.models])];
+      renderLlmModelOptions(merged, saveJson.config.customModel || saveJson.config.model);
+      const update = await fetch('/api/llm/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider: 'custom', customModels: merged })
+      });
+      const updateJson = await update.json();
+      if (updateJson.ok) applyLlmConfigToForm(updateJson.config);
+      setLlmSettingsStatus(`已读取 ${json.models.length} 个模型。`, 'success');
+    } catch (err) {
+      setLlmSettingsStatus(`读取模型列表失败: ${err.message}`, 'error');
+    }
+  }
+
+  async function resetLlmConfig() {
+    setLlmSettingsStatus('正在恢复官方默认配置...');
+    try {
+      const res = await fetch('/api/llm/config/custom', { method: 'DELETE' });
+      const json = await res.json();
+      if (!res.ok || !json.ok) throw new Error(json.error || `HTTP ${res.status}`);
+      applyLlmConfigToForm(json.config);
+      setLlmSettingsStatus('已恢复 DeepSeek 官方默认配置。', 'success');
+    } catch (err) {
+      setLlmSettingsStatus(`恢复失败: ${err.message}`, 'error');
+    }
+  }
+
+  if (dom.btnOpenAboutModal) dom.btnOpenAboutModal.addEventListener('click', () => dom.aboutModal && dom.aboutModal.classList.remove("hidden"));
+  if (dom.btnCloseAboutModal) dom.btnCloseAboutModal.addEventListener('click', () => dom.aboutModal && dom.aboutModal.classList.add("hidden"));
+  if (dom.btnConfirmAboutModal) dom.btnConfirmAboutModal.addEventListener('click', () => dom.aboutModal && dom.aboutModal.classList.add("hidden"));
+  if (dom.aboutModal) {
+    dom.aboutModal.addEventListener('click', (e) => {
+      if (e.target === dom.aboutModal) dom.aboutModal.classList.add("hidden");
+    });
+  }
+
+  if (dom.btnOpenLlmSettings) dom.btnOpenLlmSettings.addEventListener('click', () => loadLlmConfig({ showModal: true }));
+  if (dom.btnCloseLlmSettings) dom.btnCloseLlmSettings.addEventListener('click', () => dom.llmSettingsModal.classList.add('hidden'));
+  if (dom.btnCancelLlmSettings) dom.btnCancelLlmSettings.addEventListener('click', () => dom.llmSettingsModal.classList.add('hidden'));
+  if (dom.llmProvider) dom.llmProvider.addEventListener('change', () => renderLlmProviderFields(dom.llmProvider.value));
+  if (dom.llmCustomModelSelect) {
+    dom.llmCustomModelSelect.addEventListener('change', () => {
+      if (dom.llmCustomModelInput) dom.llmCustomModelInput.value = dom.llmCustomModelSelect.value;
+    });
+  }
+  if (dom.btnSaveLlmConfig) dom.btnSaveLlmConfig.addEventListener('click', saveLlmConfig);
+  if (dom.btnTestLlmConfig) dom.btnTestLlmConfig.addEventListener('click', testLlmConfig);
+  if (dom.btnRefreshLlmModels) dom.btnRefreshLlmModels.addEventListener('click', refreshLlmModels);
+  if (dom.btnResetLlmConfig) dom.btnResetLlmConfig.addEventListener('click', resetLlmConfig);
+
   // 初始加载记忆、人设胶囊、Obsidian 状态、记忆库 3/4 : 1/4 拖动分栏与 Vault 数据
   loadMemories();
   updateActivePersonaCapsule(state.selectedPersona);
+  loadLlmConfig();
   loadObsidianStatus();
   loadObsidianVaultData();
   initMemorySplitter();

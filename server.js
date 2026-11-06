@@ -6,6 +6,7 @@ require('dotenv').config();
 
 const storage = require('./storage');
 const obsidianSync = require('./obsidian-sync');
+const llmConfig = require('./llm-config');
 
 const app = express();
 const server = http.createServer(app);
@@ -13,7 +14,7 @@ const wss = new WebSocketServer({ server, path: '/ws/asr' });
 
 const PORT = process.env.PORT || (process.platform === 'linux' ? 8120 : 3000);
 const DASHSCOPE_API_KEY = process.env.DASHSCOPE_API_KEY;
-const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
+const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY || '';
 const DEEPSEEK_MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-flash';
 const API_AUTH_TOKEN = process.env.API_AUTH_TOKEN || '';
 
@@ -37,15 +38,41 @@ app.get('/health', (req, res) => {
 });
 
 app.get('/api/status', (req, res) => {
+  const llm = llmConfig.getPublicConfig();
   res.json({
     ok: true,
     dashscopeConfigured: !!DASHSCOPE_API_KEY,
-    deepseekConfigured: !!DEEPSEEK_API_KEY,
-    deepseekModel: DEEPSEEK_MODEL,
+    deepseekConfigured: llm.configured,
+    deepseekModel: llm.model,
+    llmProvider: llm.provider,
+    llmBaseUrl: llm.baseUrl,
     port: PORT,
     sessionCount: storage.getSessions().length,
     memoryCount: storage.getMemories().length
   });
+});
+
+app.get('/api/llm/config', (req, res) => {
+  res.json({ ok: true, config: llmConfig.getPublicConfig() });
+});
+
+app.post('/api/llm/config', (req, res) => {
+  const result = llmConfig.saveConfig(req.body || {});
+  res.status(result.ok ? 200 : 400).json(result);
+});
+
+app.delete('/api/llm/config/custom', (req, res) => {
+  res.json(llmConfig.clearCustomConfig());
+});
+
+app.get('/api/llm/models', async (req, res) => {
+  const result = await llmConfig.listRemoteModels();
+  res.status(result.ok ? 200 : 400).json(result);
+});
+
+app.post('/api/llm/test', async (req, res) => {
+  const result = await llmConfig.testConnection();
+  res.status(result.ok ? 200 : 400).json(result);
 });
 
 // -------------------------------------------------------------
@@ -140,28 +167,15 @@ app.post('/api/memory/extract', async (req, res) => {
 
     const userPrompt = `主题: ${topic || '录音随笔'}\n会话全文:\n${conversationText}`;
 
-    const response = await fetch('https://api.deepseek.com/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: DEEPSEEK_MODEL,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ],
-        response_format: { type: 'json_object' }
-      })
+    const result = await llmConfig.callChatCompletions({
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ],
+      responseFormat: true
     });
-
-    if (!response.ok) {
-      const err = await response.text();
-      return res.status(response.status).json({ error: err });
-    }
-
-    const data = await response.json();
+    if (!result.ok) return res.status(result.status).json({ error: result.error });
+    const data = result.data;
     const parsed = JSON.parse(data.choices[0]?.message?.content || '{"extracted_memories":[]}');
     const memoriesWithSource = (parsed.extracted_memories || []).map(m => ({
       ...m,
@@ -204,27 +218,14 @@ ${sessionContext || '暂无历史会话'}
 
 用户提问: "${question}"`;
 
-    const response = await fetch('https://api.deepseek.com/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: DEEPSEEK_MODEL,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ]
-      })
+    const result = await llmConfig.callChatCompletions({
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ]
     });
-
-    if (!response.ok) {
-      const err = await response.text();
-      return res.status(response.status).json({ error: err });
-    }
-
-    const data = await response.json();
+    if (!result.ok) return res.status(result.status).json({ error: result.error });
+    const data = result.data;
     const answer = data.choices[0]?.message?.content || '抱歉，未能查询到相关记忆。';
 
     const steps = [
@@ -297,26 +298,17 @@ app.post('/api/memory/correlate', async (req, res) => {
 
     const memoriesSample = allMemories.slice(0, 15).map(m => `[ID:${m.id}]: ${m.content}`).join('\n');
 
-    const response = await fetch('https://api.deepseek.com/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: DEEPSEEK_MODEL,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: `长期记忆库:\n${memoriesSample}\n\n当前发言: "${currentText}"` }
-        ],
-        response_format: { type: 'json_object' }
-      })
+    const completion = await llmConfig.callChatCompletions({
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: `长期记忆库:\n${memoriesSample}\n\n当前发言: "${currentText}"` }
+      ],
+      responseFormat: true
     });
-
-    if (!response.ok) return res.json({ has_correlation: false });
-    const data = await response.json();
-    const result = JSON.parse(data.choices[0]?.message?.content || '{"has_correlation":false}');
-    res.json(result);
+    if (!completion.ok) return res.json({ has_correlation: false });
+    const data = completion.data;
+    const correlation = JSON.parse(data.choices[0]?.message?.content || '{"has_correlation":false}');
+    res.json(correlation);
   } catch (err) {
     console.error('Error in /api/memory/correlate:', err);
     res.json({ has_correlation: false });
@@ -454,6 +446,10 @@ app.get('/api/llm/personas', (req, res) => {
 });
 
 app.post('/api/llm/generate-minutes', async (req, res) => {
+  const configurationError = llmConfig.ensureConfigured();
+  if (configurationError) {
+    return res.status(503).json({ error: configurationError });
+  }
   try {
     const { utterances, persona = 'detective', template = 'engineering', customTitle } = req.body;
     if (!utterances || utterances.length === 0) {
@@ -526,28 +522,15 @@ JSON Schema 规范示例：
 
     const userPrompt = `建议录音标题: ${customTitle || '无'}\n全量对话逐字稿:\n${fullTranscript}`;
 
-    const response = await fetch('https://api.deepseek.com/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: DEEPSEEK_MODEL,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ],
-        response_format: { type: 'json_object' }
-      })
+    const completion = await llmConfig.callChatCompletions({
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ],
+      responseFormat: true
     });
-
-    if (!response.ok) {
-      const err = await response.text();
-      return res.status(response.status).json({ error: err });
-    }
-
-    const data = await response.json();
+    if (!completion.ok) return res.status(completion.status).json({ error: completion.error });
+    const data = completion.data;
     const result = JSON.parse(data.choices[0]?.message?.content || '{}');
     result.persona = personaConfig;
 
@@ -599,24 +582,16 @@ JSON Schema 规范示例：
 2. 每条记忆独立成段，精炼、客观、高信噪比，20~60字
 3. 忽略闲聊口癖，只保留关键认知资产`;
 
-      const memoryResp = await fetch('https://api.deepseek.com/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${DEEPSEEK_API_KEY}`
-        },
-        body: JSON.stringify({
-          model: DEEPSEEK_MODEL,
-          messages: [
-            { role: 'system', content: memorySystemPrompt },
-            { role: 'user', content: `会话主题: ${result.title || ''}\n速览摘要: ${(result.tldr || []).join('; ')}\n决策: ${(result.decisions || []).join('; ')}\n会话全文:\n${fullTranscript}` }
-          ],
-          response_format: { type: 'json_object' }
-        })
+      const memoryResult = await llmConfig.callChatCompletions({
+        messages: [
+          { role: 'system', content: memorySystemPrompt },
+          { role: 'user', content: `会话主题: ${result.title || ''}\n速览摘要: ${(result.tldr || []).join('; ')}\n决策: ${(result.decisions || []).join('; ')}\n会话全文:\n${fullTranscript}` }
+        ],
+        responseFormat: true
       });
 
-      if (memoryResp.ok) {
-        const memData = await memoryResp.json();
+      if (memoryResult.ok) {
+        const memData = memoryResult.data;
         const memParsed = JSON.parse(memData.choices[0]?.message?.content || '{"extracted_memories":[]}');
         const memoriesWithSource = (memParsed.extracted_memories || []).map(m => ({
           ...m,
@@ -685,28 +660,15 @@ ${(activeWindow || []).map(u => `[${u.id || ''}][${u.speaker || '发言人'}][${
 
 请输出增量演进后的最新全局状态 JSON：`;
 
-    const response = await fetch('https://api.deepseek.com/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: DEEPSEEK_MODEL,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ],
-        response_format: { type: 'json_object' }
-      })
+    const completion = await llmConfig.callChatCompletions({
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ],
+      responseFormat: true
     });
-
-    if (!response.ok) {
-      const errText = await response.text();
-      return res.status(response.status).json({ error: `DeepSeek Error: ${errText}` });
-    }
-
-    const data = await response.json();
+    if (!completion.ok) return res.status(completion.status).json({ error: `模型服务错误: ${completion.error}` });
+    const data = completion.data;
     const parsedState = JSON.parse(data.choices[0]?.message?.content || '{}');
     res.json({ success: true, data: parsedState, usage: data.usage });
   } catch (err) {
@@ -743,24 +705,15 @@ app.post('/api/llm/fast-insight', async (req, res) => {
 
     const textToAnalyze = recentUtterances.map(u => u.text).join(' ');
 
-    const response = await fetch('https://api.deepseek.com/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: DEEPSEEK_MODEL,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: `当前主题: ${currentTopic || '未定'}\n最新发言: "${textToAnalyze}"` }
-        ],
-        response_format: { type: 'json_object' }
-      })
+    const completion = await llmConfig.callChatCompletions({
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: `当前主题: ${currentTopic || '未定'}\n最新发言: "${textToAnalyze}"` }
+      ],
+      responseFormat: true
     });
-
-    if (!response.ok) return res.json({ has_insight: false });
-    const data = await response.json();
+    if (!completion.ok) return res.json({ has_insight: false });
+    const data = completion.data;
     const result = JSON.parse(data.choices[0]?.message?.content || '{"has_insight":false}');
     res.json(result);
   } catch (err) {
@@ -1031,28 +984,15 @@ app.post('/api/llm/polish', async (req, res) => {
 4. 保持事实严谨，消除赘述。`;
 
     const userPrompt = `【待润色原始口语材料】:\n${text}\n\n请输出结构化正式汇报草稿：`;
-    const response = await fetch('https://api.deepseek.com/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: DEEPSEEK_MODEL,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt }
-        ],
-        temperature: 0.2
-      })
+    const completion = await llmConfig.callChatCompletions({
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ],
+      temperature: 0.2
     });
-
-    if (!response.ok) {
-      const err = await response.text();
-      return res.status(response.status).json({ ok: false, error: err });
-    }
-
-    const data = await response.json();
+    if (!completion.ok) return res.status(completion.status).json({ ok: false, error: completion.error });
+    const data = completion.data;
     const draft = data.choices?.[0]?.message?.content?.trim() || '';
     res.json({ ok: true, draft });
   } catch (err) {
@@ -1125,6 +1065,19 @@ wss.on('connection', (clientWs, req) => {
 
   function startDashScopeTask() {
     if (!isClientRecording || clientWs.readyState !== WebSocket.OPEN) return;
+
+    if (!DASHSCOPE_API_KEY) {
+      isClientRecording = false;
+      cleanupDashScope(true);
+      if (clientWs.readyState === WebSocket.OPEN) {
+        clientWs.send(JSON.stringify({
+          type: 'asr_error',
+          code: 'ASR_NOT_CONFIGURED',
+          message: 'ASR 未配置：请在 .env 中设置 DASHSCOPE_API_KEY 后重启服务。'
+        }));
+      }
+      return;
+    }
 
     cleanupDashScope(false); // 关闭旧 socket，但保留队列
     currentTaskId = 'task-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7);
@@ -1499,10 +1452,11 @@ wss.on('connection', (clientWs, req) => {
 });
 
 server.listen(PORT, () => {
+  const llm = llmConfig.getPublicConfig();
   console.log(`=================================================`);
   console.log(`[Server] TP Voice Brain · 个人长期语音录音助手 (Web)`);
   console.log(`[Server] 访问地址: http://localhost:${PORT}`);
-  console.log(`[Server] 阿里云百炼 ASR: Paraformer-realtime-v2`);
-  console.log(`[Server] DeepSeek 状态机 & 第二大脑: ${DEEPSEEK_MODEL}`);
+  console.log(`[Server] 阿里云百炼 ASR: ${DASHSCOPE_API_KEY ? 'Paraformer-realtime-v2 (已配置)' : '未配置 · 录音转写不可用'}`);
+  console.log(`[Server] LLM: ${llm.configured ? `${llm.provider}/${llm.model} @ ${llm.baseUrl} (已配置)` : '未配置 · AI 纪要不可用'}`);
   console.log(`=================================================`);
 });

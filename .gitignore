@@ -17,3 +17,6 @@ public/download/
 npm-debug.log*
 .DS_Store
 .pm2/
+
+# 本地设计评审缓存
+.oil-ui/
