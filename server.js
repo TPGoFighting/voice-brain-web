@@ -136,7 +136,7 @@ app.post('/api/memory/extract', async (req, res) => {
 
     const userPrompt = `主题: ${topic || '录音随笔'}\n会话全文:\n${conversationText}`;
 
-    const response = await fetch('https://api.deepseek.com/chat/completions', {
+    const response = await deepseekFetch({
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
@@ -150,7 +150,7 @@ app.post('/api/memory/extract', async (req, res) => {
         ],
         response_format: { type: 'json_object' }
       })
-    });
+    }, 45000);
 
     if (!response.ok) {
       const err = await response.text();
@@ -310,7 +310,7 @@ ${sessionContext || '暂无历史会话'}
 
 用户提问: "${question}"`;
 
-    const response = await fetch('https://api.deepseek.com/chat/completions', {
+    const response = await deepseekFetch({
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
@@ -324,7 +324,7 @@ ${sessionContext || '暂无历史会话'}
           { role: 'user', content: userPrompt }
         ]
       })
-    });
+    }, 45000);
 
     if (!response.ok) {
       const err = await response.text();
@@ -542,7 +542,7 @@ app.post('/api/memory/correlate', async (req, res) => {
 
     const memoriesSample = allMemories.slice(0, 15).map(m => `[ID:${m.id}]: ${m.content}`).join('\n');
 
-    const response = await fetch('https://api.deepseek.com/chat/completions', {
+    const response = await deepseekFetch({
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
@@ -556,7 +556,7 @@ app.post('/api/memory/correlate', async (req, res) => {
         ],
         response_format: { type: 'json_object' }
       })
-    });
+    }, 45000);
 
     if (!response.ok) return res.json({ has_correlation: false });
     const data = await response.json();
@@ -781,7 +781,7 @@ ${personaConfig.systemInstruction}
 
     const userPrompt = `建议录音标题: ${customTitle || '无'}\n全量对话逐字稿:\n${fullTranscript}`;
 
-    const response = await fetch('https://api.deepseek.com/chat/completions', {
+    const response = await deepseekFetch({
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
@@ -795,7 +795,7 @@ ${personaConfig.systemInstruction}
         ],
         response_format: { type: 'json_object' }
       })
-    });
+    }, 120000);
 
     if (!response.ok) {
       const err = await response.text();
@@ -942,7 +942,7 @@ ${(activeWindow || []).map(u => `[${u.id || ''}][${u.speaker || '发言人'}][${
 
 请输出增量演进后的最新全局状态 JSON：`;
 
-    const response = await fetch('https://api.deepseek.com/chat/completions', {
+    const response = await deepseekFetch({
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
@@ -956,7 +956,7 @@ ${(activeWindow || []).map(u => `[${u.id || ''}][${u.speaker || '发言人'}][${
         ],
         response_format: { type: 'json_object' }
       })
-    });
+    }, 60000);
 
     if (!response.ok) {
       const errText = await response.text();
@@ -1000,7 +1000,7 @@ app.post('/api/llm/fast-insight', async (req, res) => {
 
     const textToAnalyze = recentUtterances.map(u => (u.rawText || u.text)).join(' ');
 
-    const response = await fetch('https://api.deepseek.com/chat/completions', {
+    const response = await deepseekFetch({
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
@@ -1014,7 +1014,7 @@ app.post('/api/llm/fast-insight', async (req, res) => {
         ],
         response_format: { type: 'json_object' }
       })
-    });
+    }, 45000);
 
     if (!response.ok) return res.json({ has_insight: false });
     const data = await response.json();
@@ -1490,7 +1490,7 @@ app.post('/api/llm/polish', async (req, res) => {
 4. 保持事实严谨，消除赘述。`;
 
     const userPrompt = `【待润色原始口语材料】:\n${text}\n\n请输出结构化正式汇报草稿：`;
-    const response = await fetch('https://api.deepseek.com/chat/completions', {
+    const response = await deepseekFetch({
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
@@ -1504,7 +1504,7 @@ app.post('/api/llm/polish', async (req, res) => {
         ],
         temperature: 0.2
       })
-    });
+    }, 90000);
 
     if (!response.ok) {
       const err = await response.text();
@@ -1518,6 +1518,38 @@ app.post('/api/llm/polish', async (req, res) => {
     res.status(500).json({ ok: false, error: err.message });
   }
 });
+
+// DeepSeek 调用统一超时：无超时的 fetch 在上游卡住时会挂满 undici 默认 300s，
+// 而客户端 60s 就先断开，用户只会看到「网络异常」。超时即明确失败并给出可读原因。
+async function deepseekFetch(options, timeoutMs = 45000) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    return await fetch('https://api.deepseek.com/chat/completions', { ...options, signal: ctrl.signal });
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      throw new Error(`上游模型响应超时（${Math.round(timeoutMs / 1000)}s），请重试`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// 断线续接：客户端 WS 断开后 10 分钟内以同一 sessionId 重连，恢复原会话继续转写，
+// 而不是把录音劈成两段会话（大陆网络经 Cloudflare 隧道抖动时的主要丢字来源）。
+const resumableSessions = new Map(); // sessionId -> { utterances, closedAt }
+const RESUME_TTL_MS = 10 * 60 * 1000;
+function stashResumableSession(sessionId, utterances) {
+  if (!sessionId || !utterances || utterances.length === 0) return;
+  resumableSessions.set(sessionId, { utterances: [...utterances], closedAt: Date.now() });
+  for (const [id, entry] of resumableSessions) {
+    if (Date.now() - entry.closedAt > RESUME_TTL_MS) resumableSessions.delete(id);
+  }
+  while (resumableSessions.size > 20) {
+    resumableSessions.delete(resumableSessions.keys().next().value);
+  }
+}
 
 // -------------------------------------------------------------
 // 7. WebSocket ASR 中继 (第一层 fun-asr-realtime 感知层 + 第二层 qwen-flash 快修)
@@ -1542,6 +1574,17 @@ wss.on('connection', (clientWs, req) => {
   const DANGLING_CONJUNCTIONS = new Set(['然后', '因为', '所以', '但是', '而且', '并且', '以及', '那么', '其实', '不过', '虽然', '另外', '也就是说', '比如', '比如说']);
   const sessionUtterances = [];
 
+  // 静音/客户端冻结期保活：客户端超过 3 秒没有音频帧到达时（如 App 被系统冻结、
+  // 录音器静音门控），每 2.5 秒向 DashScope 补一帧 100ms 静音，避免平台因
+  // 长时间无音频输入关闭任务、造成恢复录音时的重连丢字。
+  const SILENCE_FRAME = Buffer.alloc(3200); // 100ms @16kHz 16-bit mono
+  let lastAudioAt = Date.now();
+  const keepaliveTimer = setInterval(() => {
+    if (isClientRecording && isTaskStarted && dashscopeWs && dashscopeWs.readyState === WebSocket.OPEN && Date.now() - lastAudioAt > 3000) {
+      try { dashscopeWs.send(SILENCE_FRAME); } catch (e) {}
+    }
+  }, 2500);
+
   function persistSessionIncremental() {
     if (sessionUtterances.length === 0) return;
     try {
@@ -1559,9 +1602,9 @@ wss.on('connection', (clientWs, req) => {
     }
   }
 
-  // 环形缓冲队列：保留最多 150 帧 (15 秒 16kHz PCM，每帧 3200 字节，防止网络重连时丢音)
+  // 环形缓冲队列：保留最多 600 帧 (60 秒 16kHz PCM，每帧 3200 字节，防止网络重连时丢音)
   const pcmQueue = [];
-  const MAX_QUEUE_SIZE = 150;
+  const MAX_QUEUE_SIZE = 600; // 60 秒（每帧 100ms），与客户端缓冲对齐
 
   function pushPcmChunk(chunk) {
     pcmQueue.push(chunk);
@@ -1854,7 +1897,16 @@ wss.on('connection', (clientWs, req) => {
             clientSilenceThreshold = 1200;
           }
           pendingPrefix = '';
-          sessionUtterances.length = 0;
+          // 断线续接：同一 sessionId 在 TTL 内重连时恢复原会话句子，录音不被劈成两段
+          const resumeEntry = cmd.sessionId ? resumableSessions.get(cmd.sessionId) : null;
+          if (resumeEntry && Date.now() - resumeEntry.closedAt < RESUME_TTL_MS) {
+            sessionUtterances.length = 0;
+            sessionUtterances.push(...resumeEntry.utterances);
+            resumableSessions.delete(cmd.sessionId);
+            console.log(`[WS] Resumed session ${cmd.sessionId} with ${sessionUtterances.length} utterances after reconnect`);
+          } else {
+            sessionUtterances.length = 0;
+          }
           console.log(`[WS] Client START command received (ip: ${clientIp}, sessionId: ${currentSessionId}, silenceThreshold: ${clientSilenceThreshold}ms)`);
           isClientRecording = true;
           isReconnecting = false;
@@ -1925,6 +1977,7 @@ wss.on('connection', (clientWs, req) => {
 
     // 2. 音频裸流 (16kHz 16-bit PCM)
     if (isClientRecording) {
+      lastAudioAt = Date.now();
       clientChunkCount++;
       clientByteCount += message.length;
       if (clientChunkCount === 1 || clientChunkCount % 30 === 0) {
@@ -1940,11 +1993,14 @@ wss.on('connection', (clientWs, req) => {
   });
 
   clientWs.on('close', (code, reason) => {
+    clearInterval(keepaliveTimer);
     console.log(`[WS] Client disconnected (code: ${code}, reason: ${reason?.toString() || 'none'}, total audio chunks: ${clientChunkCount})`);
     if (sessionUtterances.length > 0) {
       persistSessionIncremental();
       console.log(`[Storage] Auto-persisted session ${currentSessionId} with ${sessionUtterances.length} utterances.`);
     }
+    // 暂存以备断线续接（客户端 10 分钟内同 sessionId 重连可恢复）
+    stashResumableSession(currentSessionId, sessionUtterances);
     isClientRecording = false;
     cleanupDashScope(true);
   });

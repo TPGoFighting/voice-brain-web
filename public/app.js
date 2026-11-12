@@ -565,12 +565,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
       updateRecordingUI('connecting');
 
+      // 启动看门狗：WS 握手或麦克风启动卡住时（弱网、权限弹窗未处理、设备被占用），
+      // 10 秒后自动回滚到可重试状态。此前无超时也无异常兜底，按钮会永久停在
+      // disabled 的「连接中」状态，表现为用户说的「点录音按钮没反应」。
+      let startSettled = false;
+      const startWatchdog = setTimeout(() => {
+        if (startSettled || state.isRecording) return;
+        startSettled = true;
+        try { if (state.ws) state.ws.close(); } catch (e) {}
+        if (state.recorder) { try { state.recorder.stop(); } catch (e) {} state.recorder = null; }
+        updateRecordingUI('error');
+        if (typeof vbToast === 'function') vbToast('启动超时：连接或麦克风未就绪，请重试');
+      }, 10000);
+
       state.sessionId = 'sess-' + Date.now();
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       const wsUrl = `${protocol}//${window.location.host}/ws/asr`;
       state.ws = new WebSocket(wsUrl);
 
       state.ws.onopen = async () => {
+       try {
         const silenceThreshold = parseInt(localStorage.getItem('voice_sentence_silence') || '1200', 10);
         state.ws.send(JSON.stringify({
           type: 'start',
@@ -605,6 +619,15 @@ document.addEventListener('DOMContentLoaded', async () => {
           dom.timerBadge.textContent = `${m}:${s}`;
           if (dom.mobileTimerBadge) dom.mobileTimerBadge.textContent = `${m}:${s}`;
         }, 1000);
+        startSettled = true;
+        clearTimeout(startWatchdog);
+       } catch (micErr) {
+        startSettled = true;
+        clearTimeout(startWatchdog);
+        try { state.ws.close(); } catch (e) {}
+        updateRecordingUI('error');
+        alert('麦克风启动失败: ' + (micErr.message || micErr.name || '请检查麦克风权限与设备占用'));
+       }
       };
 
       state.ws.onmessage = (event) => {
@@ -618,10 +641,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       state.ws.onerror = (err) => {
         console.warn('WebSocket error:', err);
+        startSettled = true;
+        clearTimeout(startWatchdog);
         updateRecordingUI('error');
       };
 
       state.ws.onclose = () => {
+        clearTimeout(startWatchdog);
         if (!state.isRecording) {
           updateRecordingUI('idle');
         }
@@ -1517,6 +1543,7 @@ document.addEventListener('DOMContentLoaded', async () => {
               item.querySelector('.btn-ask-about-note').addEventListener('click', () => {
                 if (dom.inputObsidianQuery) {
                   dom.inputObsidianQuery.value = `请结合录音笔记 [[${vn.title}]]，梳理其中的核心争议点与待办事项`;
+                  dom.inputObsidianQuery.dispatchEvent(new Event('input'));
                   dom.inputObsidianQuery.focus();
                 }
               });
@@ -1550,6 +1577,7 @@ document.addEventListener('DOMContentLoaded', async () => {
               item.addEventListener('click', () => {
                 if (dom.inputObsidianQuery) {
                   dom.inputObsidianQuery.value = `知识库中关于 [[${ent.title || ent.name}]] 的核心定义、关联方案与历史记录是什么？`;
+                  dom.inputObsidianQuery.dispatchEvent(new Event('input'));
                   dom.inputObsidianQuery.focus();
                 }
               });
@@ -1569,11 +1597,30 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     let html = escapeHtml(md);
 
+    // 保护区：行内代码与表格先摘出，避免被后续行内规则误伤，最后统一还原
+    const stash = [];
+    const keep = (h) => { stash.push(h); return `\u0001${stash.length - 1}\u0001`; };
+    // 围栏代码块先于行内代码摘出（块内可含反引号 / 竖线，均保持字面）
+    html = html.replace(/```[a-zA-Z0-9_-]*\n([\s\S]*?)```/g, (m, code) => keep(`<pre class="ob-pre">${code.replace(/\n$/, '')}</pre>`));
+    html = html.replace(/`([^`\n]+)`/g, (m, c) => keep(`<code class="ob-code">${c}</code>`));
+    html = html.replace(/((?:^\|.*\|[ \t]*\n?)+)/gm, (block) => {
+      const rows = block.split('\n').filter(r => r.trim().startsWith('|'));
+      if (rows.length < 2 || !/^\|[\s:|-]+\|$/.test(rows[1].trim())) return block;
+      const fmt = (c) => c.replace(/\*\*(.*?)\*\*/g, '<strong class="font-extrabold text-[var(--text-title)]">$1</strong>');
+      const cells = (r) => r.trim().replace(/^\||\|$/g, '').split('|').map(c => fmt(c.trim()));
+      const head = cells(rows[0]);
+      const body = rows.slice(2).map(cells);
+      const th = head.map(c => `<th>${c}</th>`).join('');
+      const trs = body.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join('')}</tr>`).join('');
+      return keep(`<div class="ob-table-wrap"><table class="ob-table"><thead><tr>${th}</tr></thead><tbody>${trs}</tbody></table></div>`);
+    });
+
     // 块级引用行
     html = html.replace(/^&gt;\s*(.*)$/gim, '<div class="border-l-2 border-[var(--accent-yellow)] pl-2.5 my-1 text-[var(--text-body)] bg-[var(--bg-subtle)] py-0.5 rounded-r text-xs italic">$1</div>');
 
-    // 标题解析 (#, ##, ###)
+    // 标题解析 (#, ##, ###, ####)
     html = html
+      .replace(/^#### (.*$)/gim, '<h4 class="font-bold text-xs text-[var(--text-title)] mt-2 mb-0.5">$1</h4>')
       .replace(/^### (.*$)/gim, '<h3 class="font-bold text-xs sm:text-sm text-[var(--text-title)] mt-2.5 mb-1">$1</h3>')
       .replace(/^## (.*$)/gim, '<h2 class="font-black text-sm sm:text-base text-[var(--text-title)] mt-3 mb-1.5 pb-0.5 border-b border-[var(--border-subtle)]">$1</h2>')
       .replace(/^# (.*$)/gim, '<h1 class="font-black text-base sm:text-lg text-[var(--text-title)] mt-3.5 mb-2 pb-1 border-b-2 border-[var(--border-main)]">$1</h1>');
@@ -1593,6 +1640,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // 换行与段落
     html = html.replace(/\n\n/gim, '<div class="h-2"></div>').replace(/\n/gim, '<br>');
+
+    // 还原保护区（代码 / 表格；表格内可嵌代码占位，循环还原至稳定）
+    let prevHtml;
+    do {
+      prevHtml = html;
+      html = html.replace(/\u0001(\d+)\u0001/g, (m, i) => stash[+i] || '');
+    } while (html !== prevHtml);
 
     return html;
   }
@@ -1775,23 +1829,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  // 5. 清空 Obsidian 聊天历史
+  // 5. 清空 Obsidian 聊天历史（清空后回到空态）
   if (dom.btnClearObsidianChat) {
     dom.btnClearObsidianChat.addEventListener('click', () => {
       state.obsidianChatHistory = [];
-      if (dom.obsidianChatHistory) {
-        dom.obsidianChatHistory.innerHTML = `
-          <div class="p-3 rounded-lg bg-[var(--bg-subtle)] border border-[var(--border-subtle)] space-y-1.5 text-xs">
-            <div class="flex items-center space-x-1 font-bold text-[var(--accent-purple)]">
-              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-              <span>Obsidian 知识库问答助手已就绪</span>
-            </div>
-            <p class="text-[var(--text-title)] leading-relaxed text-[11px]">
-              直接输入问题，模型将结合语音会话逐字稿、提炼的人设纪要以及知识库原文给出精准回答。
-            </p>
-          </div>
-        `;
-      }
+      if (dom.obsidianChatHistory) dom.obsidianChatHistory.innerHTML = '';
+      if (typeof obSyncEmptyState === 'function') obSyncEmptyState();
     });
   }
 
@@ -1827,142 +1870,398 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
-  // 知识库问答交互
-  if (dom.formObsidianAsk) {
-    dom.formObsidianAsk.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const query = dom.inputObsidianQuery.value.trim();
-      if (!query) return;
-
-      appendObsidianChatMessage('user', query);
-      dom.inputObsidianQuery.value = '';
-      dom.btnSubmitObsidianAsk.disabled = true;
-
-      const isAutoWriteBack = dom.checkAutoWriteBack ? dom.checkAutoWriteBack.checked : false;
-      const targetNote = state.activeVaultNotePath || '00-入口/LMMWiki-Index.md';
-
-      const loadingMsgEl = appendObsidianChatMessage('assistant', '正在检索 Obsidian 6,500+ 篇笔记与录音材料...', true);
-
-      try {
-        const res = await fetch('/api/obsidian/ask', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            query,
-            history: state.obsidianChatHistory.slice(-6),
-            targetNotePath: targetNote,
-            autoWriteBack: isAutoWriteBack
-          })
+  // Vault 笔记原文查看（引用来源点击 / 写回后查看 共用同一弹窗）
+  // 注：此前 loadVaultNote 只有调用没有实现，点击来源与自动写回跟进都会抛
+  // ReferenceError；这里补齐实现，走既有 GET /api/obsidian/note 接口。
+  async function loadVaultNote(notePath) {
+    const modal = document.getElementById('vaultNoteModal');
+    const bodyEl = document.getElementById('vaultNoteBody');
+    const titleEl = document.getElementById('vaultNoteTitle');
+    const pathEl = document.getElementById('vaultNotePath');
+    if (!modal || !bodyEl) return;
+    modal.classList.remove('hidden');
+    if (titleEl) titleEl.textContent = '加载中…';
+    if (pathEl) pathEl.textContent = notePath || '';
+    bodyEl.innerHTML = '<div class="text-[var(--text-muted)] italic p-2">正在读取笔记原文…</div>';
+    try {
+      const res = await fetch('/api/obsidian/note?path=' + encodeURIComponent(notePath || ''));
+      const data = await res.json();
+      if (data.ok) {
+        if (titleEl) titleEl.textContent = data.title || notePath || '笔记';
+        if (pathEl) pathEl.textContent = data.path || notePath || '';
+        bodyEl.innerHTML = renderObsidianMarkdown(data.body || data.content || '');
+        bodyEl.querySelectorAll('[data-wikilink]').forEach(a => {
+          a.addEventListener('click', (e) => {
+            e.preventDefault();
+            loadVaultNote(a.getAttribute('data-wikilink'));
+          });
         });
-
-        const data = await res.json();
-        loadingMsgEl.remove();
-
-        if (data.ok) {
-          appendObsidianChatMessage('assistant', data.answer, false, data.sources, data.backend, query, data.writtenBack, data.writeBackPath || targetNote);
-          state.obsidianChatHistory.push({ role: 'user', content: query });
-          state.obsidianChatHistory.push({ role: 'assistant', content: data.answer });
-
-          // 若开启了自动写回且写回成功，即时重新加载左侧笔记并更新反馈
-          if (data.writtenBack) {
-            if (dom.writeBackStatusFeedback) {
-              dom.writeBackStatusFeedback.classList.remove('hidden');
-              setTimeout(() => { dom.writeBackStatusFeedback.classList.add('hidden'); }, 3500);
-            }
-            loadVaultNote(data.writeBackPath || targetNote);
-          }
-        } else {
-          appendObsidianChatMessage('assistant', '问答出错: ' + (data.error || '未知异常'));
-        }
-      } catch (err) {
-        loadingMsgEl.remove();
-        appendObsidianChatMessage('assistant', '请求失败: ' + err.message);
-      } finally {
-        dom.btnSubmitObsidianAsk.disabled = false;
+      } else {
+        bodyEl.innerHTML = `<div class="p-2" style="color:#b91c1c">读取失败: ${escapeHtml(data.error || '未知错误')}</div>`;
       }
+    } catch (err) {
+      bodyEl.innerHTML = `<div class="p-2" style="color:#b91c1c">读取异常: ${escapeHtml(err.message)}</div>`;
+    }
+  }
+
+  // 弹窗移到 body 直属层级：避免祖先的 transform/层叠上下文吞掉 fixed 定位与 z-index
+  const vaultNoteModalEl = document.getElementById('vaultNoteModal');
+  if (vaultNoteModalEl && vaultNoteModalEl.parentElement !== document.body) {
+    document.body.appendChild(vaultNoteModalEl);
+  }
+
+  document.querySelectorAll('[data-vault-note-close]').forEach(el => {
+    el.addEventListener('click', () => {
+      const m = document.getElementById('vaultNoteModal');
+      if (m) m.classList.add('hidden');
+    });
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      const m = document.getElementById('vaultNoteModal');
+      if (m) m.classList.add('hidden');
+    }
+  });
+
+  // =========================================================================
+  // Obsidian Agent 对话（参考 xchange 助手实现重构）
+  // 结构：思考头（像素阵 + 微光 + 已耗时）/ 调度规划 DAG（主调度 → 子 Agent
+  // → 任务链）/ 子 Agent 卡（ThinkingSteps + 进度条 + 摘要）/ 引用来源 / 写回。
+  // 数据口径：/api/obsidian/ask 为单次请求、无分阶段事件，DAG 与步骤状态由
+  // 客户端真实里程碑驱动（发送 → 在途 → 返回），计数 / 耗时 / 来源均为实测值。
+  // =========================================================================
+  const OB_ICONS = {
+    search: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>',
+    file: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>',
+    brain: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 2A2.5 2.5 0 0 0 7 4.5v15A2.5 2.5 0 0 0 9.5 22c.8 0 1.5-.3 2-.8V3c-.5-.6-1.2-1-2-1z"/><path d="M14.5 2A2.5 2.5 0 0 1 17 4.5v15a2.5 2.5 0 0 1-2.5 2.5c-.8 0-1.5-.3-2-.8V3c.5-.6 1.2-1 2-1z" transform="translate(1.5 0)"/></svg>',
+    check: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+    bot: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M2 14h2M20 14h2M9 13v2M15 13v2"/></svg>',
+    book: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/><path d="M6 6h10M6 10h10M6 14h6"/></svg>',
+    pen: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>',
+    copy: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
+    refresh: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>',
+    chevD: '<svg class="ob-reason-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>',
+    chevR: '<svg class="ob-reason-chevron" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg>'
+  };
+
+  function obPixelGrid(active) {
+    const delays = [0, 100, 200, 100, 200, 300, 200, 300, 400];
+    return `<span class="ob-pixel${active ? ' is-active' : ''}" aria-hidden="true">${delays.map(d => `<span style="animation-delay:${d}ms"></span>`).join('')}</span>`;
+  }
+
+  function obScrollBottom() {
+    if (dom.obsidianChatHistory) dom.obsidianChatHistory.scrollTop = dom.obsidianChatHistory.scrollHeight;
+  }
+
+  function obSyncEmptyState() {
+    const empty = document.getElementById('obEmptyState');
+    const has = !!(dom.obsidianChatHistory && dom.obsidianChatHistory.children.length > 0);
+    if (empty) empty.classList.toggle('hidden', has);
+    if (dom.obsidianChatHistory) dom.obsidianChatHistory.classList.toggle('hidden', !has);
+  }
+
+  // =========================================================================
+  // v2 原创设计层（3.11）：「轨迹 + 星图」交互
+  // - 过程呈现：一条安静的检索轨迹（里程碑由客户端真实节点驱动），完成后
+  //   收束为一行出处摘要，可展开看三句事实记录；不再堆叠多层卡片。
+  // - 引用呈现：来源先以星图带出现（节点与正文 [n] 角标双向高亮），完整
+  //   列表可展开；点击任意节点 / 角标打开笔记原文。
+  // - 回答呈现：按小节级联揭示（去模糊 + 上浮），长等待以优雅收尾。
+  // - Orb：双眼可随指针微动（眼动变量 --eye-x/--eye-y），输入时下视，
+  //   生成中左右轻扫。
+  // =========================================================================
+
+  function obOrbHtml(size, live) {
+    return `<span class="ob-orb${live ? ' is-live' : ''}" style="width:${size}px;height:${size}px"><span class="ob-eyes"><i class="ob-eye"></i><i class="ob-eye ob-eye-r"></i></span></span>`;
+  }
+
+  // 静态 HTML 中的 orb（页眉 / 空态 / 弹窗）在初始化时注入双眼
+  document.querySelectorAll('.ob-orb').forEach(o => {
+    if (!o.querySelector('.ob-eyes')) o.innerHTML = '<span class="ob-eyes"><i class="ob-eye"></i><i class="ob-eye ob-eye-r"></i></span>';
+  });
+
+  // 眼动：指针在知识库页内移动时，双眼朝指针方向微移（≤1.6px）
+  (function initObEyeTracking() {
+    const root = document.getElementById('tab-obsidian');
+    if (!root) return;
+    let raf = 0;
+    root.addEventListener('pointermove', (e) => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        const x = (e.clientX / Math.max(1, window.innerWidth) - 0.5) * 3.2;
+        const y = (e.clientY / Math.max(1, window.innerHeight) - 0.5) * 2.4;
+        root.style.setProperty('--eye-x', x.toFixed(2) + 'px');
+        root.style.setProperty('--eye-y', y.toFixed(2) + 'px');
+      });
+    });
+    root.addEventListener('pointerleave', () => {
+      root.style.setProperty('--eye-x', '0px');
+      root.style.setProperty('--eye-y', '0px');
+    });
+  })();
+
+  // 检索轨迹：三段里程碑。live 时只有第一段是进行中（单次请求口径），
+  // 完成后三段均为完成态并带真实计数 / 耗时。
+  function obTrailHtml(st) {
+    const rows = st.rows.map((r, i) => `
+      <div class="ob2-trail-row st-${r.status}">
+        <span class="ob2-trail-dot">${r.status === 'complete' ? OB_ICONS.check : ''}</span>
+        ${i < st.rows.length - 1 ? '<span class="ob2-trail-line"></span>' : ''}
+        <span class="ob2-trail-label">${escapeHtml(r.label)}</span>
+        ${r.desc ? `<span class="ob2-trail-desc">${escapeHtml(r.desc)}</span>` : ''}
+      </div>`).join('');
+    return `<div class="ob2-trail">${rows}</div>`;
+  }
+
+  function appendObsidianUserMessage(text) {
+    if (!dom.obsidianChatHistory) return;
+    const wrap = document.createElement('div');
+    wrap.className = 'ob-user-wrap ob-msg';
+    const time = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+    wrap.innerHTML = `<div class="ob-user-bubble">${escapeHtml(text)}</div><div class="ob-meta">${time}</div>`;
+    dom.obsidianChatHistory.appendChild(wrap);
+    obSyncEmptyState();
+    obScrollBottom();
+  }
+
+  function createObsidianTurn(query) {
+    const turn = document.createElement('div');
+    turn.className = 'ob2-turn ob-msg';
+    const shortQ = query.length > 42 ? query.slice(0, 42) + '…' : query;
+    turn.innerHTML = `
+      <div class="ob2-prov">
+        ${obOrbHtml(24, true)}
+        <div class="ob2-prov-main">
+          <div class="ob2-prov-line">
+            <span class="ob-shimmer">正在检索知识库</span>
+            <span class="ob2-elapsed" data-ob-elapsed>0.0s</span>
+          </div>
+          <div data-ob-trail>${obTrailHtml({ rows: [
+            { label: '混合检索', status: 'active', desc: `在知识库中检索「${shortQ}」` },
+            { label: '深读原文', status: 'pending', desc: '' },
+            { label: '生成回答', status: 'pending', desc: '' }
+          ] })}</div>
+        </div>
+      </div>
+      <div data-ob-answer></div>
+      <div data-ob-constel></div>
+      <div data-ob-sources></div>
+      <div data-ob-writeback></div>
+      <div data-ob-actions></div>
+    `;
+    dom.obsidianChatHistory.appendChild(turn);
+    const t = { el: turn, startedAt: Date.now(), timer: null, query };
+    obSyncEmptyState();
+    obScrollBottom();
+    return t;
+  }
+
+  function obBackendLabel(backend) {
+    return backend === 'hermes' ? 'Hermes Agent · Obsidian' : 'Obsidian Agent';
+  }
+
+  // 正文 [n] 角标 → 可点击引用片；与星图节点双向高亮
+  function obLinkifyCitations(rootEl, count, onCite) {
+    if (!count) return;
+    const walker = document.createTreeWalker(rootEl, NodeFilter.SHOW_TEXT, {
+      acceptNode(node) {
+        if (!node.nodeValue || !/\[\d+\]/.test(node.nodeValue)) return NodeFilter.FILTER_REJECT;
+        let p = node.parentElement;
+        while (p && p !== rootEl) {
+          if (p.tagName === 'A' || p.tagName === 'BUTTON') return NodeFilter.FILTER_REJECT;
+          p = p.parentElement;
+        }
+        return NodeFilter.FILTER_ACCEPT;
+      }
+    });
+    const nodes = [];
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+    nodes.forEach(node => {
+      const frag = document.createDocumentFragment();
+      node.nodeValue.split(/(\[\d+\])/g).forEach(part => {
+        const m = part.match(/^\[(\d+)\]$/);
+        const n = m ? parseInt(m[1], 10) : 0;
+        if (m && n >= 1 && n <= count) {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'ob2-cite';
+          b.textContent = n;
+          b.setAttribute('data-cite', n);
+          b.addEventListener('click', () => onCite(n, true));
+          b.addEventListener('mouseenter', () => onCite(n, true));
+          frag.appendChild(b);
+        } else {
+          frag.appendChild(document.createTextNode(part));
+        }
+      });
+      node.parentNode.replaceChild(frag, node);
     });
   }
 
-  function appendObsidianChatMessage(role, text, isLoading = false, sources = [], backend = '', query = '', wasWrittenBack = false, writtenBackPath = '') {
-    if (!dom.obsidianChatHistory) return null;
-    const msgDiv = document.createElement('div');
-    msgDiv.className = `p-2.5 rounded-lg border text-xs space-y-1.5 ${
-      role === 'user'
-        ? 'bg-[var(--accent-purple)]/10 border-[var(--accent-purple)]/30 text-[var(--text-title)]'
-        : 'bg-[var(--bg-subtle)] border-[var(--border-subtle)] text-[var(--text-body)]'
-    }`;
+  // 回答按小节级联揭示：以标题元素为界分段，逐段去模糊上浮
+  function obSegmentReveal(answerEl) {
+    const kids = Array.from(answerEl.childNodes);
+    if (!kids.length) return;
+    const segments = [];
+    let cur = null;
+    kids.forEach(node => {
+      if (node.nodeType === 1 && /^H[123]$/.test(node.tagName)) {
+        cur = [node];
+        segments.push(cur);
+      } else {
+        if (!cur) { cur = []; segments.push(cur); }
+        cur.push(node);
+      }
+    });
+    answerEl.innerHTML = '';
+    segments.forEach((nodes, i) => {
+      const seg = document.createElement('div');
+      seg.className = 'ob2-seg';
+      seg.style.animationDelay = Math.min(i * 70, 560) + 'ms';
+      nodes.forEach(n => seg.appendChild(n));
+      answerEl.appendChild(seg);
+    });
+  }
 
-    const roleName = role === 'user' ? '你' : (backend === 'hermes' ? 'Hermes Agent · Obsidian' : 'Obsidian 助手');
-    const roleBadge = role === 'user' ? 'tp-badge-blue' : 'tp-badge-purple';
+  function finalizeObsidianTurn(t, data, query) {
+    const secs = (Date.now() - t.startedAt) / 1000;
+    const secsText = secs.toFixed(1);
+    const sources = data.sources || [];
+    const srcCount = sources.length;
 
-    let sourcesHtml = '';
-    if (sources && sources.length > 0) {
-      sourcesHtml = `
-        <div class="pt-1.5 mt-1.5 border-t border-[var(--border-subtle)] text-[10px] space-y-1">
-          <div class="font-bold text-[var(--text-title)] flex items-center space-x-1">
-            <svg class="w-3 h-3 text-[var(--accent-purple)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/></svg>
-            <span>引用知识库来源 (${sources.length}):</span>
-          </div>
-          <div class="space-y-1">
-            ${sources.map(s => `
-              <div class="tp-citation-card p-1.5 rounded bg-[var(--bg-card)] border border-[var(--border-subtle)] hover:border-[var(--accent-purple)] cursor-pointer truncate transition-colors" data-path="${escapeHtml(s.path)}" title="点击在左侧查看该笔记">
-                <div class="font-bold text-[var(--text-title)] text-[11px] truncate flex items-center space-x-1">
-                  <span class="text-[var(--accent-purple)] font-mono">[[</span>
-                  <span class="truncate">${escapeHtml(s.title || s.path)}</span>
-                  <span class="text-[var(--accent-purple)] font-mono">]]</span>
-                </div>
-                <div class="text-[9px] text-[var(--text-muted)] truncate">${escapeHtml(s.path)}</div>
-              </div>
-            `).join('')}
-          </div>
-        </div>
-      `;
-    }
+    // 出处行：收束为一行摘要，轨迹收起待展开
+    const prov = t.el.querySelector('.ob2-prov');
+    prov.innerHTML = `
+      ${obOrbHtml(24, false)}
+      <div class="ob2-prov-main">
+        <button type="button" class="ob2-prov-line is-done" data-ob-prov-toggle aria-expanded="false">
+          <span class="ob2-prov-check">${OB_ICONS.check}</span>
+          <span>已思考 ${secsText} 秒</span>
+          ${srcCount ? `<span class="ob2-prov-dot"></span><span>命中 ${srcCount} 篇</span>` : ''}
+          <span class="ob2-prov-backend">${escapeHtml(obBackendLabel(data.backend))}</span>
+          ${OB_ICONS.chevD}
+        </button>
+        <div data-ob-trail hidden>${obTrailHtml({ rows: [
+          { label: '混合检索', status: 'complete', desc: `命中 ${srcCount} 篇相关笔记` },
+          { label: '深读原文', status: 'complete', desc: srcCount ? `载入 ${srcCount} 篇来源内容` : '无来源可载入' },
+          { label: '生成回答', status: 'complete', desc: `${obBackendLabel(data.backend)} · ${secsText}s` }
+        ] })}</div>
+      </div>`;
+    const trailBox = prov.querySelector('[data-ob-trail]');
+    prov.querySelector('[data-ob-prov-toggle]').addEventListener('click', (e) => {
+      const open = trailBox.hidden;
+      trailBox.hidden = !open;
+      e.currentTarget.setAttribute('aria-expanded', open ? 'true' : 'false');
+      const chev = e.currentTarget.querySelector('.ob-reason-chevron');
+      if (chev) chev.classList.toggle('is-open', open);
+    });
 
-    let writeBackActionHtml = '';
-    if (role === 'assistant' && !isLoading) {
-      const targetPath = state.activeVaultNotePath || '00-入口/LMMWiki-Index.md';
-      writeBackActionHtml = `
-        <div class="pt-1.5 mt-1.5 border-t border-[var(--border-subtle)] flex items-center justify-between text-[10px] gap-1">
-          <div class="truncate flex items-center space-x-1">
-            <span class="tp-wb-badge ${wasWrittenBack ? 'inline-flex' : 'hidden'} tp-badge tp-badge-green text-[9px] font-mono truncate">
-              已追加至: [[${escapeHtml(writtenBackPath || targetPath)}]]
-            </span>
-          </div>
-          <button class="tp-btn-write-back tp-btn text-[10px] py-0.5 px-2 flex items-center space-x-1 shrink-0 ${wasWrittenBack ? 'opacity-70 bg-[var(--bg-card)]' : 'tp-btn-secondary'}" data-written="${wasWrittenBack ? '1' : '0'}">
-            <svg class="w-3 h-3 text-[var(--accent-purple)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-            <span>${wasWrittenBack ? '已追加写回' : '反向追加写回当前笔记'}</span>
-          </button>
-        </div>
-      `;
-    }
-
-    msgDiv.innerHTML = `
-      <div class="flex items-center space-x-1.5 font-bold">
-        <span class="tp-badge ${roleBadge} text-[8px]">${roleName}</span>
-        ${isLoading ? `<span class="text-[10px] text-[var(--accent-purple)] animate-pulse">${Icons.spinner} 检索并推理中...</span>` : ''}
-      </div>
-      <div class="leading-relaxed whitespace-pre-wrap">${escapeHtml(text)}</div>
-      ${sourcesHtml}
-      ${writeBackActionHtml}
-    `;
-
-    // 绑定来源卡片点击事件：在左侧查看正文
-    msgDiv.querySelectorAll('.tp-citation-card').forEach(card => {
-      card.addEventListener('click', () => {
-        const p = card.getAttribute('data-path');
-        if (p) {
-          loadVaultNote(p);
-          if (dom.btnMobileObsidianVault) dom.btnMobileObsidianVault.click();
-        }
+    // 回答正文
+    const answerBox = t.el.querySelector('[data-ob-answer]');
+    answerBox.innerHTML = `<div class="ob-answer ob2-answer">${renderObsidianMarkdown(data.answer)}</div>`;
+    const answerEl = answerBox.querySelector('.ob2-answer');
+    answerEl.querySelectorAll('[data-wikilink]').forEach(a => {
+      a.addEventListener('click', (e) => {
+        e.preventDefault();
+        const p = a.getAttribute('data-wikilink');
+        if (p) loadVaultNote(p);
       });
     });
 
-    // 绑定反向追加写回按钮事件
-    const btnWb = msgDiv.querySelector('.tp-btn-write-back');
+    // 星图带：节点与正文角标双向联动
+    const constelBox = t.el.querySelector('[data-ob-constel]');
+    const srcBox = t.el.querySelector('[data-ob-sources]');
+    let activeCite = 0;
+    const setActiveCite = (n, soft) => {
+      activeCite = n;
+      constelBox.querySelectorAll('.ob2-node').forEach(node => {
+        node.classList.toggle('is-active', parseInt(node.getAttribute('data-cite'), 10) === n);
+      });
+      const cap = constelBox.querySelector('[data-ob-constel-cap]');
+      if (cap && n >= 1 && sources[n - 1]) {
+        const s = sources[n - 1];
+        cap.innerHTML = `<span class="ob2-cap-n">${n}</span><span class="ob2-cap-title">${escapeHtml(s.title || s.path)}</span><span class="ob2-cap-path">${escapeHtml(s.path)}</span>`;
+      }
+      t.el.querySelectorAll('.ob2-cite').forEach(c => {
+        c.classList.toggle('is-active', parseInt(c.getAttribute('data-cite'), 10) === n);
+      });
+      if (!soft && n >= 1 && sources[n - 1]) loadVaultNote(sources[n - 1].path);
+    };
+    if (srcCount) {
+      constelBox.innerHTML = `
+        <div class="ob2-constel">
+          <div class="ob2-constel-head">${OB_ICONS.book}<span>引用星图 · ${srcCount}</span>
+            <button type="button" class="ob2-constel-all" data-ob-all-sources aria-expanded="false">全部来源</button>
+          </div>
+          <div class="ob2-constel-track">
+            ${sources.map((s, i) => `<button type="button" class="ob2-node" style="animation-delay:${i * 45}ms" data-cite="${i + 1}" title="${escapeHtml(s.title || s.path)}"><i></i></button>`).join('')}
+          </div>
+          <div class="ob2-constel-cap" data-ob-constel-cap title="点击打开该笔记"></div>
+        </div>`;
+      constelBox.querySelectorAll('.ob2-node').forEach(node => {
+        const n = parseInt(node.getAttribute('data-cite'), 10);
+        node.addEventListener('mouseenter', () => setActiveCite(n, true));
+        node.addEventListener('click', () => setActiveCite(n, false));
+      });
+      setActiveCite(1, true);
+      const capEl = constelBox.querySelector('[data-ob-constel-cap]');
+      if (capEl) capEl.addEventListener('click', () => {
+        if (activeCite >= 1 && sources[activeCite - 1]) loadVaultNote(sources[activeCite - 1].path);
+      });
+      obLinkifyCitations(answerEl, srcCount, setActiveCite);
+
+      // 完整来源列表（展开）
+      srcBox.innerHTML = `
+        <div class="ob-sources" hidden data-ob-src-list>
+          ${sources.map((s, i) => `
+            <button type="button" class="ob-source" data-path="${escapeHtml(s.path)}">
+              <span class="ob-source-n">${i + 1}</span>
+              <span class="ob-source-main">
+                <span class="ob-source-title" style="display:block">${escapeHtml(s.title || s.path)}</span>
+                <span class="ob-source-path" style="display:block">${escapeHtml(s.path)}</span>
+              </span>
+            </button>`).join('')}
+        </div>`;
+      const list = srcBox.querySelector('[data-ob-src-list]');
+      constelBox.querySelector('[data-ob-all-sources]').addEventListener('click', (e) => {
+        const open = list.hidden;
+        list.hidden = !open;
+        e.currentTarget.setAttribute('aria-expanded', open ? 'true' : 'false');
+        e.currentTarget.textContent = open ? '收起来源' : '全部来源';
+      });
+      list.querySelectorAll('.ob-source').forEach(card => {
+        card.addEventListener('click', () => {
+          const p = card.getAttribute('data-path');
+          if (p) {
+            loadVaultNote(p);
+            if (dom.btnMobileObsidianVault) dom.btnMobileObsidianVault.click();
+          }
+        });
+      });
+    }
+
+    obSegmentReveal(answerEl);
+
+    // 写回行（行为与旧版一致：手动追加 / 已自动写回徽标）
+    const targetPath = state.activeVaultNotePath || '00-入口/LMMWiki-Index.md';
+    const wbBox = t.el.querySelector('[data-ob-writeback]');
+    wbBox.innerHTML = `
+      <div class="ob-writeback">
+        <span class="ob-wb-badge" data-ob-wb-badge${data.writtenBack ? '' : ' hidden'}>
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">已追加至: [[${escapeHtml(data.writeBackPath || targetPath)}]]</span>
+        </span>
+        <span${data.writtenBack ? ' hidden' : ''}></span>
+        <button type="button" class="ob-wb-btn" data-ob-wb-btn>
+          ${OB_ICONS.pen}<span>${data.writtenBack ? '已追加写回' : '反向追加写回当前笔记'}</span>
+        </button>
+      </div>`;
+    const btnWb = wbBox.querySelector('[data-ob-wb-btn]');
     if (btnWb) {
+      if (data.writtenBack) btnWb.disabled = true;
       btnWb.addEventListener('click', async () => {
-        const targetPath = state.activeVaultNotePath || '00-入口/LMMWiki-Index.md';
+        const tp = state.activeVaultNotePath || '00-入口/LMMWiki-Index.md';
         btnWb.disabled = true;
         btnWb.innerHTML = `${Icons.spinner}<span>写回中...</span>`;
         try {
@@ -1970,27 +2269,27 @@ document.addEventListener('DOMContentLoaded', async () => {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              notePath: targetPath,
+              notePath: tp,
               query: query || '知识库深度研判',
-              answer: text,
+              answer: data.answer,
               sources: sources || [],
-              agentBackend: backend || 'hermes'
+              agentBackend: data.backend || 'hermes'
             })
           });
           const appendData = await appendRes.json();
           if (appendData.ok) {
-            btnWb.innerHTML = `<svg class="w-3 h-3 text-[var(--accent-green)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg><span>已成功追加写回</span>`;
-            btnWb.classList.add('opacity-70');
-            const badge = msgDiv.querySelector('.tp-wb-badge');
+            btnWb.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg><span>已成功追加写回</span>`;
+            const badge = wbBox.querySelector('[data-ob-wb-badge]');
             if (badge) {
-              badge.textContent = `已追加至: [[${appendData.relativePath || targetPath}]]`;
-              badge.classList.remove('hidden');
+              badge.hidden = false;
+              const label = badge.querySelector('span');
+              if (label) label.textContent = `已追加至: [[${appendData.relativePath || tp}]]`;
             }
             if (dom.writeBackStatusFeedback) {
               dom.writeBackStatusFeedback.classList.remove('hidden');
               setTimeout(() => { dom.writeBackStatusFeedback.classList.add('hidden'); }, 3500);
             }
-            loadVaultNote(appendData.relativePath || targetPath);
+            loadVaultNote(appendData.relativePath || tp);
           } else {
             alert('写回失败: ' + (appendData.error || '未知错误'));
             btnWb.disabled = false;
@@ -2004,10 +2303,170 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
     }
 
-    dom.obsidianChatHistory.appendChild(msgDiv);
-    dom.obsidianChatHistory.scrollTop = dom.obsidianChatHistory.scrollHeight;
-    return msgDiv;
+    // 操作行：复制 / 再问一次 / 元信息
+    const actBox = t.el.querySelector('[data-ob-actions]');
+    actBox.innerHTML = `
+      <div class="ob2-actions">
+        <button type="button" class="ob2-act" data-ob-copy>${OB_ICONS.copy}<span>复制回答</span></button>
+        <button type="button" class="ob2-act" data-ob-reask>${OB_ICONS.refresh}<span>再问一次</span></button>
+        <span class="ob2-meta">${escapeHtml(obBackendLabel(data.backend))} · ${secsText} 秒</span>
+      </div>`;
+    actBox.querySelector('[data-ob-copy]').addEventListener('click', async (e) => {
+      const label = e.currentTarget.querySelector('span');
+      try {
+        await navigator.clipboard.writeText(data.answer || '');
+        if (label) { label.textContent = '已复制'; setTimeout(() => { label.textContent = '复制回答'; }, 1600); }
+      } catch (copyErr) {
+        if (label) { label.textContent = '复制失败'; setTimeout(() => { label.textContent = '复制回答'; }, 1600); }
+      }
+    });
+    actBox.querySelector('[data-ob-reask]').addEventListener('click', () => { obAsk(query); });
+    obScrollBottom();
   }
+
+  function failObsidianTurn(t, message) {
+    const prov = t.el.querySelector('.ob2-prov');
+    if (prov) {
+      prov.innerHTML = `
+        ${obOrbHtml(24, false)}
+        <div class="ob2-prov-main">
+          <div class="ob2-prov-line is-failed"><span>执行失败</span></div>
+          <div class="ob2-error">${escapeHtml(message)}</div>
+        </div>`;
+    }
+    obScrollBottom();
+  }
+
+  // 发送 / 停止（单次请求用 AbortController 实现真实停止）
+  let obAbortController = null;
+  const OB_SEND_ICON = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>';
+  const OB_STOP_ICON = '<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>';
+
+  function obSyncSendBtn() {
+    if (!dom.btnSubmitObsidianAsk || !dom.inputObsidianQuery) return;
+    if (obAbortController) return; // 生成中由 setObsidianSending 管理
+    dom.btnSubmitObsidianAsk.disabled = !dom.inputObsidianQuery.value.trim();
+  }
+
+  function setObsidianSending(on) {
+    const btn = dom.btnSubmitObsidianAsk;
+    if (!btn) return;
+    if (on) {
+      btn.disabled = false;
+      btn.classList.add('is-stop');
+      btn.innerHTML = OB_STOP_ICON;
+      btn.title = '停止生成';
+      btn.setAttribute('aria-label', '停止生成');
+    } else {
+      btn.classList.remove('is-stop');
+      btn.innerHTML = OB_SEND_ICON;
+      btn.title = '发送 (Enter)';
+      btn.setAttribute('aria-label', '发送');
+      obSyncSendBtn();
+    }
+  }
+
+  function obAutoGrowInput() {
+    const ta = dom.inputObsidianQuery;
+    if (!ta) return;
+    ta.style.height = 'auto';
+    ta.style.height = Math.min(120, ta.scrollHeight) + 'px';
+  }
+
+  if (dom.inputObsidianQuery) {
+    dom.inputObsidianQuery.addEventListener('input', () => { obAutoGrowInput(); obSyncSendBtn(); });
+    dom.inputObsidianQuery.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        if (dom.formObsidianAsk) dom.formObsidianAsk.requestSubmit();
+      }
+    });
+  }
+
+
+  // 知识库问答交互：提问流程抽为 obAsk，供表单提交与「再问一次」共用
+  async function obAsk(query) {
+    if (obAbortController || !query) return;
+    appendObsidianUserMessage(query);
+    dom.inputObsidianQuery.value = '';
+    obAutoGrowInput();
+    dom.btnSubmitObsidianAsk.disabled = true;
+
+    const isAutoWriteBack = dom.checkAutoWriteBack ? dom.checkAutoWriteBack.checked : false;
+    const targetNote = state.activeVaultNotePath || '00-入口/LMMWiki-Index.md';
+
+    const turn = createObsidianTurn(query);
+    turn.timer = setInterval(() => {
+      const s = ((Date.now() - turn.startedAt) / 1000).toFixed(1) + 's';
+      turn.el.querySelectorAll('[data-ob-elapsed]').forEach(el => { el.textContent = s; });
+    }, 100);
+    obAbortController = new AbortController();
+    setObsidianSending(true);
+
+    try {
+      const res = await fetch('/api/obsidian/ask', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query,
+          history: state.obsidianChatHistory.slice(-6),
+          targetNotePath: targetNote,
+          autoWriteBack: isAutoWriteBack
+        }),
+        signal: obAbortController.signal
+      });
+
+      const data = await res.json();
+      if (data.ok) {
+        finalizeObsidianTurn(turn, data, query);
+        state.obsidianChatHistory.push({ role: 'user', content: query });
+        state.obsidianChatHistory.push({ role: 'assistant', content: data.answer });
+
+        if (data.writtenBack) {
+          // 写回后的跟进动作独立隔离：失败不得把已成功的问答回合翻成失败态
+          try {
+            if (dom.writeBackStatusFeedback) {
+              dom.writeBackStatusFeedback.classList.remove('hidden');
+              setTimeout(() => { dom.writeBackStatusFeedback.classList.add('hidden'); }, 3500);
+            }
+            const p = loadVaultNote(data.writeBackPath || targetNote);
+            if (p && p.then) {
+              p.then(() => {
+                // 写回内容追加在笔记末尾，查看器直接滚到底部
+                const b = document.getElementById('vaultNoteBody');
+                if (b) b.scrollTop = b.scrollHeight;
+              }).catch(() => {});
+            }
+          } catch (wbErr) {
+            console.warn('writeback follow-up failed:', wbErr);
+          }
+        }
+      } else {
+        failObsidianTurn(turn, '问答出错: ' + (data.error || '未知异常'));
+      }
+    } catch (err) {
+      if (err && err.name === 'AbortError') {
+        failObsidianTurn(turn, '已停止生成');
+      } else {
+        failObsidianTurn(turn, '请求失败: ' + (err && err.message ? err.message : '网络异常'));
+      }
+    } finally {
+      if (turn.timer) clearInterval(turn.timer);
+      obAbortController = null;
+      setObsidianSending(false);
+    }
+  }
+
+  if (dom.formObsidianAsk) {
+    dom.formObsidianAsk.addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (obAbortController) { obAbortController.abort(); return; }
+      const query = dom.inputObsidianQuery.value.trim();
+      if (query) obAsk(query);
+    });
+  }
+
+  obSyncEmptyState();
 
   // 快捷问题 Chip
   dom.suggestionChips.forEach(chip => {

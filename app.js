@@ -49,7 +49,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     obsidianStatus: null,
     obsidianChatHistory: [],
     obsidianSplitRatio: parseFloat(localStorage.getItem('tp_obsidian_split_ratio')) || 75,
-    activeVaultNotePath: '00-入口/LMMWiki-Index.md',
+    activeVaultNotePath: '03-Wiki/LMMWiki/index.md',
     activeVaultCategory: 'voice',
     rawNoteMarkdown: '',
     memorySplitRatio: parseFloat(localStorage.getItem('tp_memory_split_ratio')) || 75,

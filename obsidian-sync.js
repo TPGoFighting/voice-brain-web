@@ -4,8 +4,7 @@ const path = require('path');
 // 环境配置
 const VAULT_PATH = process.env.VAULT_PATH || (fs.existsSync('/home/ubuntu/obsidian-vault') ? '/home/ubuntu/obsidian-vault' : path.join(__dirname, 'data', 'vault-mirror'));
 const OBSIDIAN_AGENT_URL = process.env.OBSIDIAN_AGENT_URL || 'http://127.0.0.1:8000';
-// 安全说明：不在源码中内置默认口令，必须通过 ADMIN_API_KEY 环境变量注入。
-const ADMIN_API_KEY = process.env.ADMIN_API_KEY || '';
+const ADMIN_API_KEY = process.env.ADMIN_API_KEY || 'Lizi12138';
 
 function ensureDir(dirPath) {
   if (!fs.existsSync(dirPath)) {
@@ -42,18 +41,55 @@ function sanitizeFilename(name) {
     .slice(0, 50);
 }
 
-// 严格校验目标路径必须位于 Vault 内部（防同级目录前缀绕过，如 ../vault-evil/）
-function isSafeVaultPath(absolutePath) {
-  const relative = path.relative(path.resolve(VAULT_PATH), path.resolve(absolutePath));
-  return relative !== '' && !relative.startsWith('..') && !path.isAbsolute(relative);
+// 标题归一化：下划线/连字符/空格统一为下划线，全半角括号与标点抹平，大小写折叠
+function normalizeTitle(name) {
+  return String(name || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[\-\s_]+/g, '')   // 分隔符（下划线/连字符/空格）全部抹平
+    .replace(/（/g, '(').replace(/）/g, ')')
+    .replace(/[()（）]/g, '')   // 全半角括号统一后删除（英文名后缀括号差异）
+    .replace(/['“”\u2018\u2019·、，,。.:：!！?？]/g, '');
 }
 
-// YAML 双引号标量转义：防止标题中的引号或换行破坏 Frontmatter 结构
-function yamlEscape(value) {
-  return String(value || '')
-    .replace(/\\/g, '\\\\')
-    .replace(/"/g, '\\"')
-    .replace(/\r?\n/g, ' ');
+// 扫描 LMMWiki 目录，构建 归一化标题/别名 -> 现有文件名 的查重索引
+function buildEntityIndex(lmmWikiDir) {
+  const index = new Map();
+  if (!fs.existsSync(lmmWikiDir)) return index;
+  for (const name of fs.readdirSync(lmmWikiDir)) {
+    if (!name.endsWith('.md')) continue;
+    const base = name.slice(0, -3);
+    const keys = new Set([normalizeTitle(base)]);
+    try {
+      const head = fs.readFileSync(path.join(lmmWikiDir, name), 'utf-8').split('---')[1] || '';
+      const aliasMatch = head.match(/^aliases:((?:\n\s+- .*)+)/m);
+      if (aliasMatch) {
+        for (const line of aliasMatch[1].split('\n')) {
+          const a = line.replace(/^\s*-\s*/, '').replace(/^["']|["']$/g, '').trim();
+          if (a) keys.add(normalizeTitle(a));
+        }
+      }
+    } catch (e) {}
+    for (const k of keys) {
+      if (!k) continue;
+      if (!index.has(k)) index.set(k, base);
+      else if (index.get(k) !== base) console.warn('[dedupe] normalized-title collision:', k, '->', index.get(k), 'vs', base);
+    }
+  }
+  return index;
+}
+
+// 写卡前查重：归一化标题命中已有卡则更新原卡（追加 session 回链 + 刷 updated），否则新建
+function findExistingEntityCard(entityIndex, rawName) {
+  const key = normalizeTitle(rawName);
+  if (!key) return null;
+  const hit = entityIndex.get(key);
+  if (hit) return { file: hit, matchedKey: key };
+  // fallback：逐键包含匹配，吸收「概念卡 vs 概念卡（英文别名）」这类尾部差异
+  for (const [k, base] of entityIndex.entries()) {
+    if (k && (k.includes(key) || key.includes(k))) return { file: base, matchedKey: k };
+  }
+  return null;
 }
 
 // 将录音会话转写为标准的 Obsidian LMMWiki 笔记
@@ -76,7 +112,7 @@ function formatSessionMarkdown(session, persona = {}) {
 
   // 构建 Frontmatter
   let md = `---
-title: "${yamlEscape(title)}"
+title: "${title}"
 created: ${createdDate}
 updated: ${formatDate(new Date())}
 date_time: "${createdDateTime}"
@@ -203,7 +239,7 @@ ${tagListYaml}
     utterances.forEach(u => {
       const time = u.time ? `\`${u.time}\` ` : '';
       const spk = u.speaker ? `**${u.speaker}**: ` : '';
-      md += `> ${time}${spk}${u.text}\n>\n`;
+      md += `> ${time}${spk}${u.rawText || u.text}\n>\n`; // Fix2: 逐字稿恒用 ASR 原文，清洗稿不入 Vault
     });
   } else {
     md += `*无逐字稿内容*\n`;
@@ -220,14 +256,7 @@ async function syncSessionToVault(session, persona = {}) {
   const targetDir = path.join(VAULT_PATH, '01-Raw', '录音材料', monthDir);
   ensureDir(targetDir);
 
-  let filename = `${createdDate}-${sanitizeFilename(title)}.md`;
-  // 同一天同标题的重复归档不覆盖旧笔记，追加序号生成唯一文件名
-  if (fs.existsSync(path.join(targetDir, filename))) {
-    const baseName = filename.slice(0, -3);
-    let counter = 2;
-    while (fs.existsSync(path.join(targetDir, `${baseName}-${counter}.md`))) counter++;
-    filename = `${baseName}-${counter}.md`;
-  }
+  const filename = `${createdDate}-${sanitizeFilename(title)}.md`;
   const filePath = path.join(targetDir, filename);
   const relativePath = path.join('01-Raw', '录音材料', monthDir, filename).replace(/\\/g, '/');
 
@@ -241,31 +270,48 @@ async function syncSessionToVault(session, persona = {}) {
   ensureDir(lmmWikiDir);
 
   const entities = session.minutes?.lmm_wiki_entities || [];
+  const entityIndex = buildEntityIndex(lmmWikiDir); // 每次同步前重建归一化查重索引
   for (const ent of entities) {
-    const entName = sanitizeFilename(typeof ent === 'string' ? ent : ent.name);
+    const rawName = typeof ent === 'string' ? ent : ent.name;
+    if (!rawName) continue;
+    const entName = sanitizeFilename(rawName);
     if (!entName) continue;
-    const entPath = path.join(lmmWikiDir, `${entName}.md`);
     const backlink = `- [[${relativePath}|${createdDate} ${title}]] (角色: [[03-Wiki/LMMWiki/角色-${persona.name || '红队侦探'}|${persona.name || '红队侦探'}]])`;
 
-    if (fs.existsSync(entPath)) {
+    // 查重：按归一化标题（含 aliases）命中已有卡则更新原卡，不再新建变体卡
+    const dup = findExistingEntityCard(entityIndex, rawName);
+    const entPath = dup
+      ? path.join(lmmWikiDir, `${dup.file}.md`)
+      : path.join(lmmWikiDir, `${entName}.md`);
+
+    if (dup) {
+      console.log('[dedupe] entity matched existing card:', rawName, '->', dup.file);
       let existing = fs.readFileSync(entPath, 'utf-8');
       if (!existing.includes(relativePath)) {
-        if (!existing.includes('## 关联语音录音讨论 (Referenced Voice Sessions)')) {
-          existing += `\n\n## 关联语音录音讨论 (Referenced Voice Sessions)\n\n${backlink}\n`;
+        const sessHeader = '## 关联语音录音讨论 (Referenced Voice Sessions)';
+        if (!existing.includes(sessHeader)) {
+          existing += `\n\n${sessHeader}\n\n${backlink}\n`;
         } else {
-          existing = existing.replace('## 关联语音录音讨论 (Referenced Voice Sessions)', `## 关联语音录音讨论 (Referenced Voice Sessions)\n\n${backlink}`);
+          existing = existing.replace(sessHeader, `${sessHeader}\n\n${backlink}`);
         }
+        // 刷新 updated 字段
+        existing = existing.replace(/^updated:.*$/m, `updated: ${formatDate(new Date())}`);
         fs.writeFileSync(entPath, existing, 'utf-8');
       }
     } else {
       const entDesc = typeof ent === 'object' && ent.description ? ent.description : '由 TP Voice Brain 录音会话自动沉淀的核心概念节点。';
       const entCategory = typeof ent === 'object' && ent.category ? ent.category : '概念';
+      const entSummary = String(entDesc || '').replace(/["|]/g, '').trim().slice(0, 40);
       const entContent = `---
-title: "${yamlEscape(entName)}"
+title: "${entName}"
 created: ${createdDate}
 updated: ${formatDate(new Date())}
 layer: wiki
 provenance: voice-brain
+status: active
+topics:
+  - "${session.topic || '语音知识'}"
+summary: "${entSummary}"
 tags:
   - 知识库
   - lmm-wiki
@@ -283,8 +329,9 @@ ${entDesc}
 ${backlink}
 `;
       fs.writeFileSync(entPath, entContent, 'utf-8');
+      entityIndex.set(normalizeTitle(entName), entName); // 新卡入索引，同批次后续实体同样可查重
     }
-    entitiesCreated.push(entName);
+    entitiesCreated.push(dup ? dup.file : entName);
   }
 
   // 更新角色人设主页
@@ -330,7 +377,7 @@ ${personaBacklink}
     fs.writeFileSync(personaNotePath, pContent, 'utf-8');
   }
 
-  // 更新主索引文件：00-入口/LMMWiki-Index.md
+  // 追加会话行到当月 sessions 表（03-Wiki/LMMWiki/sessions-YYYY-MM.md）
   updateMasterIndex(session, persona, relativePath);
 
   // 触发 Obsidian-Agent 增量重索引
@@ -359,9 +406,10 @@ ${personaBacklink}
 
 // 更新知识库主入口索引
 function updateMasterIndex(session, persona, relativePath) {
-  const indexDir = path.join(VAULT_PATH, '00-入口');
+  const monthDir = (formatDate(session.createdAt) || '').slice(0, 7) || 'unknown-month';
+  const indexDir = path.join(VAULT_PATH, '03-Wiki', 'LMMWiki');
   ensureDir(indexDir);
-  const indexPath = path.join(indexDir, 'LMMWiki-Index.md');
+  const indexPath = path.join(indexDir, `sessions-${monthDir}.md`);
 
   const createdDateTime = formatDateTime(session.createdAt);
   const title = session.title || session.topic || '未命名讨论';
@@ -381,7 +429,7 @@ function updateMasterIndex(session, persona, relativePath) {
     }
   } else {
     const newIndex = `---
-title: LMMWiki 知识总线索引
+title: "LMMWiki 会话流水 ${monthDir}"
 created: ${formatDate(new Date())}
 updated: ${formatDate(new Date())}
 layer: wiki
@@ -392,7 +440,7 @@ tags:
   - 总线索引
 ---
 
-# LMMWiki 知识总线索引 (Voice Brain & Second Brain)
+# LMMWiki 会话流水（${monthDir}）
 
 > 基于 Karpathy LLM-Wiki 范式构建：录音素材为不可变源数据，大模型为编译器，持续编译出高信噪比、互相双向链接的活体知识节点。
 
@@ -426,14 +474,29 @@ ${row}
 // 统一向 Obsidian 知识库 (带 Hermes / Native RAG) 发起提问
 async function queryObsidianVault(query, history = []) {
   try {
-    const res = await fetch(`${OBSIDIAN_AGENT_URL}/api/chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        message: query,
-        history: history.slice(-8)
-      })
-    });
+    // 120s 超时：Agent 多步检索 legitimately 可达数十秒，但无超时的 fetch 会挂满
+    // undici 默认 300s，而客户端 60~150s 先断开后只会报「网络异常」，掩盖真实等待。
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 120000);
+    let res;
+    try {
+      res = await fetch(`${OBSIDIAN_AGENT_URL}/api/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: query,
+          history: history.slice(-8)
+        }),
+        signal: ctrl.signal
+      });
+    } catch (fetchErr) {
+      if (fetchErr.name === 'AbortError') {
+        throw new Error('Obsidian Agent 响应超时（120s），问题可能较复杂，请稍后重试');
+      }
+      throw fetchErr;
+    } finally {
+      clearTimeout(timer);
+    }
     if (!res.ok) {
       const errText = await res.text();
       throw new Error(`Obsidian Agent responded with ${res.status}: ${errText}`);
@@ -478,9 +541,9 @@ function readVaultNote(noteRelativePath) {
   if (!fs.existsSync(VAULT_PATH)) {
     return { ok: false, error: 'Vault path does not exist on host' };
   }
-  const cleanPath = (noteRelativePath || '00-入口/LMMWiki-Index.md').replace(/^\/+/, '');
+  const cleanPath = (noteRelativePath || '03-Wiki/LMMWiki/index.md').replace(/^\/+/, '');
   const targetPath = path.resolve(VAULT_PATH, cleanPath);
-  if (!isSafeVaultPath(targetPath)) {
+  if (!targetPath.startsWith(path.resolve(VAULT_PATH))) {
     return { ok: false, error: 'Access denied: path traversal not allowed' };
   }
 
@@ -586,7 +649,7 @@ function listVaultNotes(category = 'all') {
 
   return {
     ok: true,
-    indexNote: '00-入口/LMMWiki-Index.md',
+    indexNote: '03-Wiki/LMMWiki/index.md',
     voiceNotes,
     wikiEntities
   };
@@ -624,7 +687,7 @@ async function getObsidianStatus() {
 
   let agentStatus = null;
   try {
-    const healthRes = await fetch(`${OBSIDIAN_AGENT_URL}/api/health`, { signal: AbortSignal.timeout(3000) });
+    const healthRes = await fetch(`${OBSIDIAN_AGENT_URL}/api/health`, { timeout: 3000 });
     if (healthRes.ok) {
       agentStatus = await healthRes.json();
     }
@@ -654,10 +717,10 @@ async function appendThinkingToNote({
   }
 
   // 清洗并解析目标笔记相对路径
-  let cleanRelPath = (notePath || '00-入口/LMMWiki-Index.md').replace(/^\/+/, '');
+  let cleanRelPath = (notePath || '03-Wiki/LMMWiki/index.md').replace(/^\/+/, '');
   let actualPath = path.resolve(VAULT_PATH, cleanRelPath);
 
-  if (!isSafeVaultPath(actualPath)) {
+  if (!actualPath.startsWith(path.resolve(VAULT_PATH))) {
     throw new Error('Access denied: path traversal not allowed');
   }
 

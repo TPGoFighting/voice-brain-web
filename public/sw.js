@@ -6,7 +6,7 @@
  *   并通过 postMessage 通知页面给用户 toast 反馈
  * - 问答/流式/清洗等实时接口：永不缓存、永不排队（无离线语义）
  */
-const VERSION = 'vb-pwa-3.9.0';
+const VERSION = 'vb-pwa-3.11.3-monochrome';
 const SHELL_CACHE = VERSION + '-shell';
 const DATA_CACHE = VERSION + '-data';
 
@@ -15,9 +15,11 @@ const SHELL_ASSETS = [
   '/index.html',
   '/tailwind-static.css?v=3.8.0_phase2',
   '/style.css?v=3.9.0_phase3',
+  '/ob-chat.css?v=3.11.2',
+  '/monochrome-glass.css?v=20261110b',
   '/tp-ui.css',
   '/tp-bridge.css',
-  '/app.js?v=3.9.0_phase3',
+  '/app.js?v=3.11.2_orbit',
   '/audio-recorder.js?v=3.9.0_phase3',
   '/icons.js',
   '/tp-theme.js',
@@ -26,7 +28,9 @@ const SHELL_ASSETS = [
   '/favicon.ico',
   '/icon-192.png',
   '/icon-512.png',
-  '/site.webmanifest'
+  '/site.webmanifest',
+  '/assets/brand/tp-logo-line-transparent.png',
+  '/assets/brand/tp-boy-notes.png'
 ];
 
 const QUEUEABLE = [

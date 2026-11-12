@@ -15,7 +15,7 @@
   <link rel="icon" href="/favicon-16.png" sizes="16x16" type="image/png">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <link rel="manifest" href="/site.webmanifest">
-  <meta name="theme-color" content="#FAF8F2">
+  <meta name="theme-color" content="#FFFFFF">
 
   <!-- 3. 字体系统 (Plus Jakarta Sans / JetBrains Mono) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -28,6 +28,8 @@
   <!-- 4. TP UI 组件库核心样式 v2.4.0 与工程适配层 -->
   <link rel="stylesheet" href="tp-ui.css">
   <link rel="stylesheet" href="style.css?v=3.9.0_phase3">
+  <link rel="stylesheet" href="ob-chat.css?v=3.11.2">
+  <link rel="stylesheet" href="monochrome-glass.css?v=20261110b">
   <script src="icons.js?v=2.6.0"></script>
 </head>
 <body class="h-full overflow-hidden antialiased">
@@ -42,7 +44,7 @@
       <!-- 品牌 Logo (官方等距立体字标 3D Mark + T小P 品牌系统) -->
       <div class="flex items-center space-x-2.5 whitespace-nowrap shrink-0">
         <div class="w-8 h-8 rounded-lg border-2 border-[var(--border-main)] bg-[var(--bg-card)] flex items-center justify-center shadow-[2px_2px_0px_var(--border-main)] shrink-0 p-0.5 overflow-hidden">
-          <img src="assets/web/logo-header-transparent.png" alt="TP Logo" class="w-full h-full object-contain">
+          <img src="assets/brand/tp-logo-line-transparent.png" alt="TP Logo" class="w-full h-full object-contain">
         </div>
         <div class="whitespace-nowrap">
           <div class="flex items-center space-x-1.5 whitespace-nowrap">
@@ -69,7 +71,7 @@
         <button class="tp-tab-btn flex items-center space-x-1.5" data-tab="tab-obsidian">
           <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/><path d="M6 6h10M6 10h10M6 14h6"/></svg>
           <span>Obsidian · LMMWiki</span>
-          <span id="obsidianNavBadge" class="text-[9px] px-1.5 py-0.2 rounded-full bg-[var(--accent-purple)] text-white font-mono font-bold">6.5k</span>
+          <span id="obsidianNavBadge" class="text-[9px] px-1.5 py-0.2 rounded-full text-white font-mono font-bold" style="background:#fe5d02">6.5k</span>
         </button>
         <button class="tp-tab-btn flex items-center space-x-1.5" data-tab="tab-memory">
           <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 3.5C8 3.5 6.5 4.5 6 6C4.5 6.5 3.5 8 3.5 10C3.5 11.5 4.5 13 5.5 13.5C4.5 14.5 4.5 16 5.5 17.5C6.5 19 8.5 19.5 10 19C10.5 20 11.5 20.5 12.5 20.5"/><path d="M14.5 3.5C16 3.5 17.5 4.5 18 6C19.5 6.5 20.5 8 20.5 10C20.5 11.5 19.5 13 18.5 13.5C19.5 14.5 19.5 16 18.5 17.5C17.5 19 15.5 19.5 14 19C13.5 20 12.5 20.5 11.5 20.5"/></svg>
@@ -682,55 +684,59 @@
           <!-- 左侧：知识库问答对话区 (占 7 列) -->
           <div class="md:col-span-7 flex flex-col h-full min-h-0 overflow-hidden space-y-2.5">
             <div class="tp-card flex-1 min-h-0 flex flex-col p-3 space-y-2.5 overflow-hidden bg-[var(--bg-card)]">
-              <div class="flex items-center justify-between pb-1.5 border-b border-[var(--border-subtle)]">
-                <div class="flex items-center space-x-1.5">
-                  <span class="w-5 h-5 rounded bg-[var(--accent-purple)] text-white flex items-center justify-center font-bold text-xs">
-                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                  </span>
-                  <span class="font-extrabold text-xs text-[var(--text-title)]">联合知识库问答</span>
+              <div class="flex items-center justify-between pb-2 border-b border-[var(--border-subtle)]">
+                <div class="flex items-center space-x-2.5 min-w-0">
+                  <span class="ob-orb" style="width:26px;height:26px"></span>
+                  <div class="min-w-0">
+                    <div class="font-extrabold text-[13px] text-[var(--text-title)] leading-tight">Obsidian 知识库 Agent</div>
+                    <div class="text-[10px] text-[var(--text-muted)] leading-tight mt-0.5">主调度 · 检索 / 深读 / 生成</div>
+                  </div>
                 </div>
-                
-                <div class="flex items-center space-x-2 text-[10px]">
-                  <label class="flex items-center space-x-1 cursor-pointer" title="Hermes 思考后自动将洞见写回指定 Obsidian 笔记末尾">
+
+                <div class="flex items-center space-x-2 text-[10px] shrink-0">
+                  <label class="flex items-center space-x-1 cursor-pointer" title="思考后自动将洞见写回指定 Obsidian 笔记末尾">
                     <input type="checkbox" id="checkAutoWriteBack" checked class="rounded border-[var(--border-main)] text-[var(--accent-purple)]">
                     <span class="text-[var(--accent-purple)] font-bold">反向写回笔记</span>
                   </label>
-                  <span id="activeWriteBackTargetBadge" class="font-mono text-[9px] text-[var(--text-muted)] truncate max-w-[130px]" title="当前写回目标笔记">00-入口/LMMWiki-Index.md</span>
                   <button id="btnClearObsidianChat" class="tp-btn text-[10px] py-0.5 px-1.5" title="清空问答历史">
                     <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                   </button>
                 </div>
               </div>
 
-              <!-- 快捷推荐提问词 -->
-              <div class="shrink-0 flex items-center space-x-1.5 overflow-x-auto pb-1 text-[11px]">
-                <span class="text-[var(--text-muted)] text-[10px] shrink-0 font-bold">推荐探查:</span>
-                <button type="button" class="tp-suggestion-chip tp-badge tp-badge-purple hover:opacity-80 cursor-pointer shrink-0">总结当前录音涉及的最新技术定夺</button>
-                <button type="button" class="tp-suggestion-chip tp-badge hover:opacity-80 cursor-pointer shrink-0">知识库中关于分层架构的沉淀有哪些？</button>
-                <button type="button" class="tp-suggestion-chip tp-badge hover:opacity-80 cursor-pointer shrink-0">查阅与 DJI Mic 相关的决策记录</button>
-              </div>
-
-              <!-- 问答对话列表 (内部独立滚动) -->
-              <div id="obsidianChatHistory" class="tp-scroll-pane flex-1 min-h-0 space-y-3 pr-1 text-xs">
-                <div class="p-3 rounded-lg bg-[var(--bg-subtle)] border border-[var(--border-subtle)] space-y-1.5">
-                  <div class="flex items-center space-x-1.5 font-bold text-[var(--accent-purple)]">
-                    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/><path d="M6 6h10M6 10h10M6 14h6"/></svg>
-                    <span>Obsidian 知识库问答助手已就绪</span>
+              <!-- 空态（无对话时显示，参考 xc-empty） -->
+              <div id="obEmptyState" class="flex-1 min-h-0 overflow-y-auto">
+                <div class="ob-empty">
+                  <span class="ob-orb" style="width:52px;height:52px"></span>
+                  <h3 class="ob-empty-title">问问你的 Obsidian 知识库</h3>
+                  <p class="ob-empty-desc">已连接 6,500+ 篇笔记与全部录音材料。提问后，主调度会派出知识库 Agent 检索原文、深读相关段落，再生成带引用的回答。</p>
+                  <div class="ob-empty-group">
+                    <div class="ob-empty-label">试试这样问</div>
+                    <div class="ob-empty-list">
+                      <button type="button" class="ob-ask tp-suggestion-chip"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg><span>总结当前录音涉及的最新技术定夺</span></button>
+                      <button type="button" class="ob-ask tp-suggestion-chip"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg><span>知识库中关于分层架构的沉淀有哪些？</span></button>
+                      <button type="button" class="ob-ask tp-suggestion-chip"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg><span>查阅与 DJI Mic 相关的决策记录</span></button>
+                    </div>
                   </div>
-                  <p class="text-[var(--text-title)] leading-relaxed text-[11px]">
-                    已连接服务器上的 <strong>/home/ubuntu/obsidian-vault</strong> 知识库（包含 6,500+ 篇深度笔记）以及通过本助手同步的全部 <strong>01-Raw/录音材料/</strong>。
-                    你可以直接提问，模型将结合语音会话逐字稿、提炼的人设纪要以及知识库原文给出精准回答，并附带引用来源与双向链接。
-                  </p>
                 </div>
               </div>
 
-              <!-- 底部输入框 -->
-              <form id="formObsidianAsk" class="shrink-0 flex items-center space-x-2 pt-1 border-t border-[var(--border-subtle)]">
-                <input id="inputObsidianQuery" type="text" placeholder="向知识库与录音材料提问..." class="flex-1 bg-[var(--bg-subtle)] border-1.5 border-[var(--border-main)] rounded-lg px-3 py-1.5 text-xs text-[var(--text-title)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-purple)]">
-                <button type="submit" id="btnSubmitObsidianAsk" class="tp-btn tp-btn-purple text-xs py-1.5 px-3 flex items-center space-x-1 shrink-0 font-bold">
-                  <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-                  <span>提问</span>
-                </button>
+              <!-- 问答对话列表 (内部独立滚动) -->
+              <div id="obsidianChatHistory" class="tp-scroll-pane flex-1 min-h-0 space-y-4 pr-1 hidden"></div>
+
+              <!-- 底部输入岛 -->
+              <form id="formObsidianAsk" class="ob-composer shrink-0">
+                <textarea id="inputObsidianQuery" rows="1" placeholder="向知识库与录音材料提问..."></textarea>
+                <div class="ob-composer-foot">
+                  <span class="ob-target-pill" title="当前写回目标笔记">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                    <span style="flex-shrink:0">写回</span>
+                    <span id="activeWriteBackTargetBadge" style="overflow:hidden;text-overflow:ellipsis">00-入口/LMMWiki-Index.md</span>
+                  </span>
+                  <button type="submit" id="btnSubmitObsidianAsk" class="ob-send" title="发送 (Enter)" aria-label="发送" disabled>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+                  </button>
+                </div>
               </form>
             </div>
           </div>
@@ -1024,6 +1030,22 @@
     </div>
   </div>
 
+  <!-- Vault 笔记原文查看弹窗（引用来源 / 写回目标 共用）；样式走 ob-chat.css 的 .vnm-* 手写类，不依赖预编译 Tailwind 的任意值类 -->
+  <div id="vaultNoteModal" class="vnm hidden" role="dialog" aria-modal="true">
+    <div class="vnm-backdrop" data-vault-note-close></div>
+    <div class="vnm-panel">
+      <div class="vnm-head">
+        <span class="ob-orb" style="width:22px;height:22px"></span>
+        <div class="vnm-titlewrap">
+          <div id="vaultNoteTitle" class="vnm-title">笔记</div>
+          <div id="vaultNotePath" class="vnm-path"></div>
+        </div>
+        <button type="button" class="tp-btn vnm-close" data-vault-note-close>关闭</button>
+      </div>
+      <div id="vaultNoteBody" class="vnm-body tp-scroll-pane"></div>
+    </div>
+  </div>
+
   <!-- ========================================================================= -->
   <!-- 角色人设选择器大弹窗 (Koboyo Persona Selector Modal)                         -->
   <!-- ========================================================================= -->
@@ -1083,12 +1105,12 @@
   <!-- 引入 TP UI 动效与交互引擎及业务逻辑脚本 -->
   <script src="tp-ui.js?v=3.5.0" defer></script>
   <script src="audio-recorder.js?v=3.9.0_phase3"></script>
-  <script src="app.js?v=3.9.0_phase3"></script>
+  <script src="app.js?v=3.11.2_orbit"></script>
   <script>
   // 二期升级：PWA Service Worker 注册（离线外壳 + 弱网队列）；队列事件转 CustomEvent 供 app.js 提示
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/sw.js?v=3.9.0').catch(() => {});
+      navigator.serviceWorker.register('/sw.js?v=3.11.3_monochrome').catch(() => {});
       navigator.serviceWorker.addEventListener('message', (e) => {
         if (!e.data) return;
         if (e.data.type === 'vb-queued') window.dispatchEvent(new CustomEvent('vb-offline-queued'));
